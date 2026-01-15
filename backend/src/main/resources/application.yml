@@ -1,0 +1,36 @@
+spring:
+  application:
+    name: chainpay-backend
+  
+  datasource:
+    url: jdbc:postgresql://localhost:5432/chainpay
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  
+  jpa:
+    hibernate:
+      ddl-auto: update
+    show-sql: true
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: true
+
+server:
+  port: 8080
+  servlet:
+    context-path: /api
+
+# Blockchain Configuration
+blockchain:
+  network-url: ${BLOCKCHAIN_NETWORK_URL:http://127.0.0.1:7545}
+  contract-address: ${CONTRACT_ADDRESS:}
+  private-key: ${PRIVATE_KEY:}
+  gas-price: 20000000000
+  gas-limit: 3000000
+
+# JWT Configuration
+jwt:
+  secret: ${JWT_SECRET:your-secret-key-change-this-in-production-min-256-bits}
+  expiration: 86400000 # 24 hours in milliseconds
