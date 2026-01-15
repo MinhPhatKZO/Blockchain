@@ -1,0 +1,51 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDEs
+.idea/
+.vscode/
+*.iml
+*.swp
+*.swo
+
+# Logs
+*.log
+logs/
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+*/node_modules/
+
+# Build outputs
+dist/
+build/
+target/
+*/target/
+*.jar
+*.war
+
+# Contract artifacts (keep structure but ignore compiled)
+contracts/artifacts/
+contracts/cache/
+contracts/typechain-types/
+contracts/deployments/*.json
+!contracts/deployments/.gitkeep
+
+# Frontend
+frontend/dist/
+frontend/.vite/
+
+# Backend
+backend/target/
+backend/.mvn/
+
+# Temporary
+*.tmp
+*.temp
+.cache/
