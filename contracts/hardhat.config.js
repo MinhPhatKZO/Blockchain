@@ -17,8 +17,8 @@ module.exports = {
       url: "http://127.0.0.1:7545",
       accounts: [
         // Add your Ganache private keys here
-        "0xYourPrivateKey1",
-        "0xYourPrivateKey2"
+        "0xd866ff2457170eca2ec1088ff326a2e0ce2eb10db44dfece38557cb2e6bc4263",
+        "0x1dff2e8512619a5ab3ec4089377c76d642dd217f157aad53b7c5c50155de89fa"
       ]
     },
     sepolia: {
@@ -31,7 +31,7 @@ module.exports = {
     apiKey: process.env.ETHERSCAN_API_KEY
   },
   paths: {
-    sources: "./",
+    sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
