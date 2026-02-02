@@ -20,7 +20,6 @@ import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.crypto.TransactionEncoder;
 import org.web3j.utils.Numeric;
 
 import java.math.BigInteger;
@@ -51,10 +50,13 @@ public class ChainPayContractService {
         Web3j web3j = blockchainService.getWeb3j();
         String contractAddress = blockchainService.getContractAddress();
         
+        // --- FIX: Ép kiểu Arrays.<Type>asList để tránh lỗi Type Mismatch ---
+        List<Type> inputParameters = Arrays.<Type>asList(new Address(toAddress), new Uint256(amount));
+
         // Build the function call
         Function function = new Function(
                 "sendPayment",
-                Arrays.asList(new Address(toAddress), new Uint256(amount)),
+                inputParameters,
                 Collections.emptyList()
         );
         
@@ -101,8 +103,8 @@ public class ChainPayContractService {
         
         Function function = new Function(
                 "getBalance",
-                Arrays.asList(new Address(address)),
-                Arrays.asList(new TypeReference<Uint256>() {})
+                Arrays.<Type>asList(new Address(address)), // Input
+                Arrays.asList(new TypeReference<Uint256>() {}) // Output mong đợi
         );
         
         String encodedFunction = FunctionEncoder.encode(function);
@@ -116,8 +118,9 @@ public class ChainPayContractService {
             throw new RuntimeException("Error calling contract: " + response.getError().getMessage());
         }
         
+        // --- FIX LOGIC: Giải mã kết quả trả về từ Blockchain ---
         String value = response.getValue();
-        List<Type<?>> decoded = FunctionReturnDecoder.decode(value, function.getOutputParameters());
+        List<Type> decoded = FunctionReturnDecoder.decode(value, function.getOutputParameters());
         
         if (decoded.isEmpty()) {
             return BigInteger.ZERO;

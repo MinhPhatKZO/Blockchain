@@ -3,9 +3,13 @@ spring:
     name: chainpay-backend
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/chainpay
+    # Đã sửa 'chainpay' thành 'blockchain_db' cho khớp với pgAdmin
+    url: jdbc:postgresql://localhost:5432/blockchain_db
+    # Nếu username của bạn là 'postgres', giữ nguyên dòng dưới
     username: ${DB_USERNAME:postgres}
-    password: ${DB_PASSWORD:postgres}
+    # QUAN TRỌNG: Thay đổi dòng dưới nếu mật khẩu của bạn KHÔNG PHẢI là 'postgres'
+    # Ví dụ: password: 123456
+    password: 123456
     driver-class-name: org.postgresql.Driver
   
   jpa:

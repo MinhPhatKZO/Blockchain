@@ -1,18 +1,20 @@
 package com.chainpay.dto;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
-import jakarta.validation.constraints.Positive;
-import lombok.Data;
-
 import java.math.BigInteger;
 
-@Data
 public class PaymentRequest {
-    @NotBlank(message = "Recipient address is required")
     private String toAddress;
-    
-    @NotNull(message = "Amount is required")
-    @Positive(message = "Amount must be positive")
-    private BigInteger amount; // Amount in Wei
+    private BigInteger amount;
+    private String privateKey; // Dùng để ký giao dịch
+
+    public PaymentRequest() {}
+
+    public String getToAddress() { return toAddress; }
+    public void setToAddress(String toAddress) { this.toAddress = toAddress; }
+
+    public BigInteger getAmount() { return amount; }
+    public void setAmount(BigInteger amount) { this.amount = amount; }
+
+    public String getPrivateKey() { return privateKey; }
+    public void setPrivateKey(String privateKey) { this.privateKey = privateKey; }
 }
