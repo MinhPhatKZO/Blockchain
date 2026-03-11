@@ -1,7 +1,7 @@
 package com.chainpay.config;
 
-import com.chainpay.security.JwtAuthenticationFilter;
-import com.chainpay.security.CustomUserDetailsService;
+import java.util.Arrays;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -16,6 +16,12 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
+import org.springframework.web.cors.CorsConfiguration;
+import org.springframework.web.cors.CorsConfigurationSource;
+import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
+
+import com.chainpay.security.CustomUserDetailsService;
+import com.chainpay.security.JwtAuthenticationFilter;
 
 @Configuration
 @EnableWebSecurity
@@ -28,11 +34,13 @@ public class SecurityConfig {
     @Autowired
     private JwtAuthenticationFilter jwtAuthenticationFilter;
     
+    // 1. Mã hóa mật khẩu
     @Bean
     public PasswordEncoder passwordEncoder() {
         return new BCryptPasswordEncoder();
     }
     
+    // 2. Cấu hình xác thực
     @Bean
     public DaoAuthenticationProvider authenticationProvider() {
         DaoAuthenticationProvider authProvider = new DaoAuthenticationProvider();
@@ -41,18 +49,44 @@ public class SecurityConfig {
         return authProvider;
     }
     
+    // 3. Quản lý xác thực
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration authConfig) throws Exception {
         return authConfig.getAuthenticationManager();
     }
+
+    // 4. CẤU HÌNH CORS (Quan trọng để React gọi được)
+    @Bean
+    public CorsConfigurationSource corsConfigurationSource() {
+        CorsConfiguration configuration = new CorsConfiguration();
+        // Cho phép Frontend chạy ở port 3000
+        configuration.setAllowedOrigins(Arrays.asList("http://localhost:3000")); 
+        // Cho phép đủ các method
+        configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS")); 
+        // Cho phép gửi kèm Header (như Authorization)
+        configuration.setAllowedHeaders(Arrays.asList("Authorization", "Content-Type")); 
+        configuration.setAllowCredentials(true);
+        
+        UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
+        source.registerCorsConfiguration("/**", configuration);
+        return source;
+    }
     
+    // 5. BỘ LỌC BẢO MẬT CHÍNH
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
-        http.csrf(csrf -> csrf.disable())
-            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS))
+        http
+            .csrf(csrf -> csrf.disable()) // Tắt CSRF vì dùng API
+            .cors(c -> c.configurationSource(corsConfigurationSource())) // Áp dụng CORS
+            .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS)) // Không dùng Session
             .authorizeHttpRequests(auth -> auth
-                .requestMatchers("/auth/login", "/auth/register").permitAll()
-                .anyRequest().authenticated()
+                // --- CÁC ĐƯỜNG DẪN KHÔNG CẦN LOGIN ---
+                .requestMatchers("/api/auth/**").permitAll() 
+                .requestMatchers("/auth/**").permitAll()
+                .requestMatchers("/error").permitAll() // Quan trọng: Để hiện lỗi 404/500 thay vì 403
+                // -------------------------------------
+                
+                .anyRequest().authenticated() // Còn lại phải có Token
             )
             .authenticationProvider(authenticationProvider())
             .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);

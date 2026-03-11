@@ -1,11 +1,16 @@
 package com.chainpay.service;
 
+import java.math.BigInteger;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.Optional;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.web3j.protocol.Web3j;
 import org.web3j.abi.FunctionEncoder;
 import org.web3j.abi.FunctionReturnDecoder;
 import org.web3j.abi.TypeReference;
@@ -14,20 +19,15 @@ import org.web3j.abi.datatypes.Function;
 import org.web3j.abi.datatypes.Type;
 import org.web3j.abi.datatypes.generated.Uint256;
 import org.web3j.crypto.Credentials;
+import org.web3j.crypto.RawTransaction;
+import org.web3j.crypto.TransactionEncoder;
+import org.web3j.protocol.Web3j;
 import org.web3j.protocol.core.DefaultBlockParameterName;
-import org.web3j.protocol.core.methods.request.Transaction;
 import org.web3j.protocol.core.methods.response.EthCall;
 import org.web3j.protocol.core.methods.response.EthGetTransactionReceipt;
 import org.web3j.protocol.core.methods.response.EthSendTransaction;
 import org.web3j.protocol.core.methods.response.TransactionReceipt;
-import org.web3j.crypto.TransactionEncoder;
 import org.web3j.utils.Numeric;
-
-import java.math.BigInteger;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.List;
-import java.util.Optional;
 
 @Service
 public class ChainPayContractService {
@@ -43,32 +43,29 @@ public class ChainPayContractService {
     @Value("${blockchain.gas-limit}")
     private BigInteger gasLimit;
     
-    /**
-     * Send payment from one address to another
-     */
+    // --- 1. Gửi Token/Ether (Chuyển tiền nội bộ trong Contract) ---
     public String sendPayment(String fromPrivateKey, String toAddress, BigInteger amount) throws Exception {
         Credentials credentials = Credentials.create(fromPrivateKey);
         Web3j web3j = blockchainService.getWeb3j();
         String contractAddress = blockchainService.getContractAddress();
         
-        // Build the function call
+        // Tạo hàm sendPayment(address to, uint256 amount)
+        List<Type> inputParameters = Arrays.<Type>asList(new Address(toAddress), new Uint256(amount));
+
         Function function = new Function(
                 "sendPayment",
-                Arrays.asList(new Address(toAddress), new Uint256(amount)),
+                inputParameters,
                 Collections.emptyList()
         );
         
         String encodedFunction = FunctionEncoder.encode(function);
         
-        // Get nonce
         BigInteger nonce = web3j.ethGetTransactionCount(
                 credentials.getAddress(), DefaultBlockParameterName.LATEST).send().getTransactionCount();
         
-        // Get chain ID
         long chainId = web3j.ethChainId().send().getChainId().longValue();
         
-        // Create raw transaction
-        org.web3j.crypto.RawTransaction rawTransaction = org.web3j.crypto.RawTransaction.createTransaction(
+        RawTransaction rawTransaction = RawTransaction.createTransaction(
                 nonce,
                 gasPrice,
                 gasLimit,
@@ -76,8 +73,7 @@ public class ChainPayContractService {
                 encodedFunction
         );
         
-        // Sign and send transaction
-        byte[] signedMessage = org.web3j.crypto.TransactionEncoder.signMessage(rawTransaction, chainId, credentials);
+        byte[] signedMessage = TransactionEncoder.signMessage(rawTransaction, chainId, credentials);
         String hexValue = Numeric.toHexString(signedMessage);
         
         EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(hexValue).send();
@@ -86,29 +82,24 @@ public class ChainPayContractService {
             throw new RuntimeException("Transaction failed: " + ethSendTransaction.getError().getMessage());
         }
         
-        String txHash = ethSendTransaction.getTransactionHash();
-        logger.info("Transaction sent: {}", txHash);
-        
-        return txHash;
+        return ethSendTransaction.getTransactionHash();
     }
     
-    /**
-     * Get balance of an address
-     */
+    // --- 2. Lấy số dư (Trong Contract) ---
     public BigInteger getBalance(String address) throws Exception {
         Web3j web3j = blockchainService.getWeb3j();
         String contractAddress = blockchainService.getContractAddress();
         
         Function function = new Function(
                 "getBalance",
-                Arrays.asList(new Address(address)),
+                Arrays.<Type>asList(new Address(address)),
                 Arrays.asList(new TypeReference<Uint256>() {})
         );
         
         String encodedFunction = FunctionEncoder.encode(function);
         
         EthCall response = web3j.ethCall(
-                Transaction.createEthCallTransaction(null, contractAddress, encodedFunction),
+                org.web3j.protocol.core.methods.request.Transaction.createEthCallTransaction(null, contractAddress, encodedFunction),
                 DefaultBlockParameterName.LATEST
         ).send();
         
@@ -117,7 +108,7 @@ public class ChainPayContractService {
         }
         
         String value = response.getValue();
-        List<Type<?>> decoded = FunctionReturnDecoder.decode(value, function.getOutputParameters());
+        List<Type> decoded = FunctionReturnDecoder.decode(value, function.getOutputParameters());
         
         if (decoded.isEmpty()) {
             return BigInteger.ZERO;
@@ -126,37 +117,74 @@ public class ChainPayContractService {
         return (BigInteger) decoded.get(0).getValue();
     }
     
-    /**
-     * Wait for transaction receipt
-     */
+    // --- 3. [QUAN TRỌNG] Nạp tiền vào Contract (Deposit) ---
+    // Hàm này dùng để Admin nạp ETH từ ví ngoài vào quỹ của Contract
+    public String deposit(String privateKey, BigInteger amountWei) throws Exception {
+        Credentials credentials = Credentials.create(privateKey);
+        Web3j web3j = blockchainService.getWeb3j();
+        String contractAddress = blockchainService.getContractAddress();
+
+        // Hàm deposit() không có tham số input
+        Function function = new Function(
+                "deposit",
+                Collections.emptyList(),
+                Collections.emptyList()
+        );
+
+        String encodedFunction = FunctionEncoder.encode(function);
+
+        BigInteger nonce = web3j.ethGetTransactionCount(
+                credentials.getAddress(), DefaultBlockParameterName.LATEST).send().getTransactionCount();
+
+        long chainId = web3j.ethChainId().send().getChainId().longValue();
+
+        // CHÚ Ý: Tham số amountWei được đưa vào field "value" của Transaction
+        RawTransaction rawTransaction = RawTransaction.createTransaction(
+                nonce,
+                gasPrice,
+                gasLimit,
+                contractAddress,
+                amountWei, // <--- Gửi kèm tiền ETH thật vào đây
+                encodedFunction
+        );
+
+        byte[] signedMessage = TransactionEncoder.signMessage(rawTransaction, chainId, credentials);
+        String hexValue = Numeric.toHexString(signedMessage);
+
+        EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(hexValue).send();
+
+        if (ethSendTransaction.hasError()) {
+            throw new RuntimeException("Deposit failed: " + ethSendTransaction.getError().getMessage());
+        }
+
+        return ethSendTransaction.getTransactionHash();
+    }
+
+    // --- 4. Tiện ích ---
+    public boolean isValidAddress(String address) {
+        return address != null && address.matches("^0x[a-fA-F0-9]{40}$");
+    }
+
     public TransactionReceipt waitForTransactionReceipt(String txHash) throws Exception {
         Web3j web3j = blockchainService.getWeb3j();
+        Optional<TransactionReceipt> receiptOptional = Optional.empty();
         
-        Optional<TransactionReceipt> receipt;
         int attempts = 0;
+        int sleepDuration = 1000;
         int maxAttempts = 30;
-        
-        do {
+
+        while (attempts < maxAttempts) {
             EthGetTransactionReceipt receiptResponse = web3j.ethGetTransactionReceipt(txHash).send();
-            receipt = receiptResponse.getTransactionReceipt();
+            receiptOptional = receiptResponse.getTransactionReceipt();
+
+            if (receiptOptional.isPresent()) {
+                return receiptOptional.get();
+            }
+
+            Thread.sleep(sleepDuration);
             attempts++;
-            
-            if (attempts >= maxAttempts) {
-                throw new RuntimeException("Transaction receipt not found after " + maxAttempts + " attempts");
-            }
-            
-            if (!receipt.isPresent()) {
-                Thread.sleep(2000); // Wait 2 seconds before retrying
-            }
-        } while (!receipt.isPresent());
-        
-        return receipt.get();
-    }
-    
-    /**
-     * Check if address is valid
-     */
-    public boolean isValidAddress(String address) {
-        return blockchainService.isValidAddress(address);
+        }
+
+        throw new RuntimeException("Transaction receipt not found after waiting");
     }
 }

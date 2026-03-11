@@ -68,7 +68,7 @@ contract ChainPay {
     
     /**
      * @dev Withdraw funds from contract
-     * @param amount Amount to withdraw (in Wei)
+     * @param amount Amount to withdraw 
      */
     function withdraw(uint256 amount) public {
         require(amount > 0, "Amount must be greater than 0");

@@ -1,12 +1,24 @@
 package com.chainpay.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-
-@Data
-@AllArgsConstructor
 public class BalanceResponse {
     private String address;
-    private String balance; // Balance in Wei
-    private String balanceInEther; // Balance in Ether
+    private String balance;
+    private String currency;
+
+    public BalanceResponse() {}
+
+    public BalanceResponse(String address, String balance, String currency) {
+        this.address = address;
+        this.balance = balance;
+        this.currency = currency;
+    }
+
+    public String getAddress() { return address; }
+    public void setAddress(String address) { this.address = address; }
+
+    public String getBalance() { return balance; }
+    public void setBalance(String balance) { this.balance = balance; }
+
+    public String getCurrency() { return currency; }
+    public void setCurrency(String currency) { this.currency = currency; }
 }

@@ -1,57 +1,66 @@
 package com.chainpay.entity;
 
-import jakarta.persistence.*;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
+import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.time.LocalDateTime;
 
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.Table;
+
 @Entity
 @Table(name = "transactions")
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class Transaction {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
-    
-    @Column(name = "from_address", nullable = false)
+
     private String fromAddress;
-    
-    @Column(name = "to_address", nullable = false)
     private String toAddress;
+    private BigDecimal amount;
+
+    @Column(name = "transaction_hash", unique = true)
+    private String transactionHash;
+
+    private String status;
+    private LocalDateTime timestamp;
     
-    @Column(nullable = false)
-    private BigInteger amount;
-    
-    @Column(name = "tx_hash", unique = true)
-    private String txHash;
-    
-    @Column(name = "block_number")
     private BigInteger blockNumber;
-    
-    @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
-    private TransactionStatus status;
-    
-    @Column(name = "created_at")
-    private LocalDateTime createdAt;
-    
-    @Column(name = "confirmed_at")
     private LocalDateTime confirmedAt;
-    
+
     @PrePersist
     protected void onCreate() {
-        createdAt = LocalDateTime.now();
-        if (status == null) {
-            status = TransactionStatus.PENDING;
-        }
+        timestamp = LocalDateTime.now();
     }
-    
-    public enum TransactionStatus {
-        PENDING, SUCCESS, FAILED
-    }
+
+    public Transaction() {}
+
+    // Getters
+    public Long getId() { return id; }
+    public String getFromAddress() { return fromAddress; }
+    public String getToAddress() { return toAddress; }
+    public BigDecimal getAmount() { return amount; }
+    public String getTransactionHash() { return transactionHash; }
+    public String getTxHash() { return transactionHash; } // Alias
+    public String getStatus() { return status; }
+    public LocalDateTime getTimestamp() { return timestamp; }
+    public LocalDateTime getCreatedAt() { return timestamp; } // Alias
+    public BigInteger getBlockNumber() { return blockNumber; }
+    public LocalDateTime getConfirmedAt() { return confirmedAt; }
+
+    // Setters
+    public void setId(Long id) { this.id = id; }
+    public void setFromAddress(String fromAddress) { this.fromAddress = fromAddress; }
+    public void setToAddress(String toAddress) { this.toAddress = toAddress; }
+    public void setAmount(BigDecimal amount) { this.amount = amount; }
+    public void setTransactionHash(String transactionHash) { this.transactionHash = transactionHash; }
+    public void setTxHash(String txHash) { this.transactionHash = txHash; } // Alias
+    public void setStatus(String status) { this.status = status; }
+    public void setTimestamp(LocalDateTime timestamp) { this.timestamp = timestamp; }
+    public void setBlockNumber(BigInteger blockNumber) { this.blockNumber = blockNumber; }
+    public void setConfirmedAt(LocalDateTime confirmedAt) { this.confirmedAt = confirmedAt; }
 }

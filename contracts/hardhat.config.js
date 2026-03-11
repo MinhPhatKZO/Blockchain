@@ -1,5 +1,6 @@
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-verify");
+require("dotenv").config()
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -14,11 +15,9 @@ module.exports = {
   },
   networks: {
     ganache: {
-      url: "http://127.0.0.1:7545",
+      url: process.env.GANACHE_RPC_URL,
       accounts: [
-        // Add your Ganache private keys here
-        "0xYourPrivateKey1",
-        "0xYourPrivateKey2"
+        process.env.GANACHE_PRIVATE_KEY
       ]
     },
     sepolia: {
@@ -31,7 +30,7 @@ module.exports = {
     apiKey: process.env.ETHERSCAN_API_KEY
   },
   paths: {
-    sources: "./",
+    sources: "./contracts",
     tests: "./test",
     cache: "./cache",
     artifacts: "./artifacts"
