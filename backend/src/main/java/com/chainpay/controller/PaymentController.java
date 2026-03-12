@@ -8,9 +8,14 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.messaging.simp.SimpMessagingTemplate; 
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.web.bind.annotation.*;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
-import com.chainpay.dto.BalanceResponse;
 import com.chainpay.dto.PaymentRequest;
 import com.chainpay.dto.PaymentResponse;
 import com.chainpay.entity.Transaction;
@@ -71,10 +76,14 @@ public class PaymentController {
             );
 
             // D. Trả về kết quả
+            String responseMessage = tx.getStatus().equals("SUCCESS") 
+                    ? "Giao dịch Blockchain thành công!" 
+                    : "Giao dịch thất bại (Không thể kết nối Ganache hoặc lỗi Smart Contract)!";
+                    
             return ResponseEntity.ok(new PaymentResponse(
                     tx.getTransactionHash(),
                     tx.getStatus(),
-                    "Giao dịch Blockchain thành công!"
+                    responseMessage
             ));
         } catch (Exception e) {
             e.printStackTrace(); // In lỗi ra Console để dễ debug
@@ -82,19 +91,39 @@ public class PaymentController {
         }
     }
 
+    // --- API MỚI: LƯU LỊCH SỬ GIAO DỊCH TỪ METAMASK ---
+    @PostMapping("/record")
+    public ResponseEntity<?> recordTransaction(@RequestBody java.util.Map<String, String> payload) {
+        try {
+            Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+            User currentUser = userRepository.findByUsername(auth.getName()).orElseThrow();
+            
+            String toAddress = payload.get("toAddress");
+            String amount = payload.get("amount");
+            String txHash = payload.get("transactionHash");
+
+            // Lưu vào DB
+            paymentService.recordExternalPayment(currentUser.getWalletAddress(), toAddress, amount, txHash);
+
+            // Bắn thông báo Real-time cho người nhận
+            String notificationMessage = "TING TING! Bạn vừa nhận được " + amount + " WEI qua MetaMask!";
+            messagingTemplate.convertAndSend("/topic/notifications/" + toAddress, notificationMessage);
+
+            return ResponseEntity.ok("Đã ghi nhận lịch sử giao dịch thành công!");
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Lỗi ghi nhận: " + e.getMessage());
+        }
+    }
+
     // --- 2. API XEM SỐ DƯ (TRÊN BLOCKCHAIN) ---
     @GetMapping("/balance/{address}")
-    public ResponseEntity<BalanceResponse> getBalance(@PathVariable String address) {
+    public ResponseEntity<?> getBalance(@PathVariable String address) {
         try {
             // Gọi xuống Blockchain thật để lấy số dư trong Contract
             BigInteger balanceWei = paymentService.getBalance(address);
-            return ResponseEntity.ok(new BalanceResponse(
-                    address,
-                    balanceWei.toString(),
-                    "WEI"
-            ));
+            return ResponseEntity.ok(balanceWei.toString());
         } catch (Exception e) {
-            return ResponseEntity.badRequest().body(new BalanceResponse(address, "0", "ERROR: " + e.getMessage()));
+            return ResponseEntity.badRequest().body("Lỗi lấy số dư: " + e.getMessage());
         }
     }
 

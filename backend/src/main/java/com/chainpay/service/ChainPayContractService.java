@@ -49,7 +49,6 @@ public class ChainPayContractService {
         Web3j web3j = blockchainService.getWeb3j();
         String contractAddress = blockchainService.getContractAddress();
         
-        // Tạo hàm sendPayment(address to, uint256 amount)
         List<Type> inputParameters = Arrays.<Type>asList(new Address(toAddress), new Uint256(amount));
 
         Function function = new Function(
@@ -79,9 +78,10 @@ public class ChainPayContractService {
         EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(hexValue).send();
         
         if (ethSendTransaction.hasError()) {
-            throw new RuntimeException("Transaction failed: " + ethSendTransaction.getError().getMessage());
+            throw new RuntimeException("Giao dịch bị từ chối ngay khi gửi: " + ethSendTransaction.getError().getMessage());
         }
         
+        logger.info("Đã gửi giao dịch sendPayment. Hash: {}", ethSendTransaction.getTransactionHash());
         return ethSendTransaction.getTransactionHash();
     }
     
@@ -104,7 +104,7 @@ public class ChainPayContractService {
         ).send();
         
         if (response.hasError()) {
-            throw new RuntimeException("Error calling contract: " + response.getError().getMessage());
+            throw new RuntimeException("Lỗi khi đọc Smart Contract: " + response.getError().getMessage());
         }
         
         String value = response.getValue();
@@ -118,19 +118,12 @@ public class ChainPayContractService {
     }
     
     // --- 3. [QUAN TRỌNG] Nạp tiền vào Contract (Deposit) ---
-    // Hàm này dùng để Admin nạp ETH từ ví ngoài vào quỹ của Contract
     public String deposit(String privateKey, BigInteger amountWei) throws Exception {
         Credentials credentials = Credentials.create(privateKey);
         Web3j web3j = blockchainService.getWeb3j();
         String contractAddress = blockchainService.getContractAddress();
 
-        // Hàm deposit() không có tham số input
-        Function function = new Function(
-                "deposit",
-                Collections.emptyList(),
-                Collections.emptyList()
-        );
-
+        Function function = new Function("deposit", Collections.emptyList(), Collections.emptyList());
         String encodedFunction = FunctionEncoder.encode(function);
 
         BigInteger nonce = web3j.ethGetTransactionCount(
@@ -138,13 +131,12 @@ public class ChainPayContractService {
 
         long chainId = web3j.ethChainId().send().getChainId().longValue();
 
-        // CHÚ Ý: Tham số amountWei được đưa vào field "value" của Transaction
         RawTransaction rawTransaction = RawTransaction.createTransaction(
                 nonce,
                 gasPrice,
                 gasLimit,
                 contractAddress,
-                amountWei, // <--- Gửi kèm tiền ETH thật vào đây
+                amountWei, 
                 encodedFunction
         );
 
@@ -154,9 +146,10 @@ public class ChainPayContractService {
         EthSendTransaction ethSendTransaction = web3j.ethSendRawTransaction(hexValue).send();
 
         if (ethSendTransaction.hasError()) {
-            throw new RuntimeException("Deposit failed: " + ethSendTransaction.getError().getMessage());
+            throw new RuntimeException("Lỗi khi Deposit: " + ethSendTransaction.getError().getMessage());
         }
 
+        logger.info("Đã gửi giao dịch deposit. Hash: {}", ethSendTransaction.getTransactionHash());
         return ethSendTransaction.getTransactionHash();
     }
 
@@ -165,6 +158,7 @@ public class ChainPayContractService {
         return address != null && address.matches("^0x[a-fA-F0-9]{40}$");
     }
 
+    // [ĐÃ NÂNG CẤP BẢO MẬT]
     public TransactionReceipt waitForTransactionReceipt(String txHash) throws Exception {
         Web3j web3j = blockchainService.getWeb3j();
         Optional<TransactionReceipt> receiptOptional = Optional.empty();
@@ -173,18 +167,28 @@ public class ChainPayContractService {
         int sleepDuration = 1000;
         int maxAttempts = 30;
 
+        logger.info("Đang chờ xác nhận giao dịch trên Blockchain...");
+
         while (attempts < maxAttempts) {
             EthGetTransactionReceipt receiptResponse = web3j.ethGetTransactionReceipt(txHash).send();
             receiptOptional = receiptResponse.getTransactionReceipt();
 
             if (receiptOptional.isPresent()) {
-                return receiptOptional.get();
+                TransactionReceipt receipt = receiptOptional.get();
+                
+                // 🛑 Kiểm tra xem Smart Contract có báo lỗi (Revert) không
+                if (!receipt.isStatusOK()) {
+                    throw new RuntimeException("Giao dịch bị từ chối (Revert) bởi Smart Contract! Hãy kiểm tra lại số dư hoặc điều kiện.");
+                }
+                
+                logger.info("Giao dịch thành công tại Block: {}", receipt.getBlockNumber());
+                return receipt;
             }
 
             Thread.sleep(sleepDuration);
             attempts++;
         }
 
-        throw new RuntimeException("Transaction receipt not found after waiting");
+        throw new RuntimeException("Timeout: Không tìm thấy giao dịch sau " + maxAttempts + " giây.");
     }
 }

@@ -22,10 +22,11 @@ server:
   # ĐÃ XÓA DÒNG context-path ĐỂ TRÁNH LỖI KÉP /api/api
 
 # Blockchain Configuration
+
 blockchain:
   network-url: http://127.0.0.1:7545
-  contract-address: 0x155bF19F19Ce8EB4E6df40013168F22407FEC1e1
-  private-key: 0xc15e87be6b5f3ebde703e40bf37cd54893ab16597d364b824eb372b0d4e7a5aa
+  contract-address: "0x155bF19F19Ce8EB4E6df40013168F22407FEC1e1"
+  private-key: "0x003a9c6bfb61cfe46d012bb000275a6c21f4d7e3d10f90b1489844ad931c3a36"
   gas-price: 20000000000
   gas-limit: 3000000
 
