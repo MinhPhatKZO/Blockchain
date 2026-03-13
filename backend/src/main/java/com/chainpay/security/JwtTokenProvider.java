@@ -22,11 +22,16 @@ public class JwtTokenProvider {
 
     public String generateToken(Authentication authentication) {
         String username = authentication.getName();
+        
+        // LẤY QUYỀN CỦA USER: Lôi quyền hạn (ROLE_USER hoặc ROLE_ADMIN) từ phiên đăng nhập
+        String role = authentication.getAuthorities().iterator().next().getAuthority();
+
         Date currentDate = new Date();
         Date expireDate = new Date(currentDate.getTime() + jwtExpirationDate);
 
         return Jwts.builder()
                 .subject(username)
+                .claim("role", role) // THÊM MỚI: Đóng dấu quyền hạn vào Payload của Token
                 .issuedAt(new Date())
                 .expiration(expireDate)
                 .signWith(key())

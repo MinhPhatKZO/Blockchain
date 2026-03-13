@@ -3,7 +3,7 @@ import axiosClient from '../api/axiosClient';
 import { PaymentRequest, PaymentResponse } from '../types';
 import NotificationListener from './NotificationListener';
 import WalletConnect from './WalletConnect';
-import { FaPaperPlane, FaWallet, FaSignOutAlt, FaExchangeAlt, FaUserCircle, FaHistory, FaArrowUp, FaArrowDown, FaInfoCircle, FaCopy, FaCheckCircle } from 'react-icons/fa';
+import { FaPaperPlane, FaWallet, FaSignOutAlt, FaExchangeAlt, FaHistory, FaArrowUp, FaArrowDown, FaInfoCircle, FaCopy, FaCheckCircle, FaCubes, FaTimes } from 'react-icons/fa';
 import Web3 from 'web3';
 
 interface User {
@@ -34,7 +34,6 @@ const Dashboard: React.FC = () => {
     const [history, setHistory] = useState<TransactionHistory[]>([]);
     const [selectedTx, setSelectedTx] = useState<TransactionHistory | null>(null);
     
-    // Thêm State lưu số dư
     const [balance, setBalance] = useState<string>('Đang tải...');
     const [copied, setCopied] = useState(false);
 
@@ -44,16 +43,13 @@ const Dashboard: React.FC = () => {
 
     const fetchDashboardData = async () => {
         try {
-            // 1. Lấy thông tin User
             const userRes = await axiosClient.get<User>('/users/me');
             setCurrentUser(userRes.data);
             localStorage.setItem('user', JSON.stringify(userRes.data));
 
-            // 2. Lấy Lịch sử giao dịch
             const historyRes = await axiosClient.get<TransactionHistory[]>('/users/history');
             setHistory(historyRes.data);
 
-            // 3. Lấy Số dư từ Smart Contract (Dựa vào API vừa tạo)
             if (userRes.data.walletAddress) {
                 try {
                     const balRes = await axiosClient.get(`/payment/balance/${userRes.data.walletAddress}`);
@@ -67,7 +63,8 @@ const Dashboard: React.FC = () => {
             console.error("Lỗi tải dữ liệu Dashboard:", error);
         }
     };
-const handleSend = async (e: React.FormEvent) => {
+
+    const handleSend = async (e: React.FormEvent) => {
         e.preventDefault();
         setLoading(true);
         setResult(null);
@@ -76,37 +73,31 @@ const handleSend = async (e: React.FormEvent) => {
             const ethereum = (window as any).ethereum;
             if (!ethereum) throw new Error("Vui lòng cài đặt ví MetaMask!");
 
-            // --- ĐOẠN SỬA QUAN TRỌNG: ÉP METAMASK MỞ BẢNG CHỌN TÀI KHOẢN ---
             const accounts = await ethereum.request({ method: 'eth_requestAccounts' });
-            const activeAccount = accounts[0]; // Lấy ví đang hiển thị trong MetaMask
-            console.log("Ví đang hoạt động:", activeAccount);
+            const activeAccount = accounts[0]; 
 
             const web3 = new Web3(ethereum);
-            const contractAddress = "0x155bF19F19Ce8EB4E6df40013168F22407FEC1e1"; 
+            const contractAddress = "0xd9145CCE52D386f254917e481eB44e9943F39138"; 
             
             const contractABI = [
                 {
-                    "inputs": [
-                        { "internalType": "address", "name": "to", "type": "address" },
-                        { "internalType": "uint256", "name": "amount", "type": "uint256" }
-                    ],
+                    "inputs": [{ "internalType": "address payable", "name": "to", "type": "address" }],
                     "name": "sendPayment",
                     "outputs": [],
-                    "stateMutability": "nonpayable",
+                    "stateMutability": "payable",
                     "type": "function"
                 }
             ];
 
             const contract = new web3.eth.Contract(contractABI, contractAddress);
 
-            // Gửi giao dịch với account vừa lấy được từ MetaMask (activeAccount)
-            const receipt = await contract.methods.sendPayment(toAddress, amount).send({ 
-                from: activeAccount 
+            const receipt = await contract.methods.sendPayment(toAddress).send({ 
+                from: activeAccount,
+                value: amount 
             });
 
             const txHash = receipt.transactionHash as string;
 
-            // Lưu vào Backend
             await axiosClient.post('/payment/record', {
                 toAddress,
                 amount,
@@ -134,7 +125,7 @@ const handleSend = async (e: React.FormEvent) => {
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
         setCopied(true);
-        setTimeout(() => setCopied(false), 2000); // Tắt hiệu ứng copy sau 2 giây
+        setTimeout(() => setCopied(false), 2000); 
     };
 
     const logout = () => {
@@ -146,238 +137,270 @@ const handleSend = async (e: React.FormEvent) => {
     }
 
     return (
-        <div className="min-vh-100 py-4" style={{ background: 'linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%)' }}>
+        <div className="min-h-screen bg-[#f8fafc] font-sans pb-20 relative text-slate-800">
             {currentUser && currentUser.walletAddress && (
                 <NotificationListener walletAddress={currentUser.walletAddress} />
             )}
 
-            <div className="container">
-                {/* HEADER */}
-                <div className="d-flex justify-content-between align-items-center mb-4 bg-white rounded-4 shadow-sm p-4">
-                    <div className="d-flex align-items-center gap-3">
-                        <div className="bg-primary text-white rounded-circle d-flex align-items-center justify-content-center shadow" style={{ width: '50px', height: '50px', fontSize: '24px' }}>🚀</div>
-                        <div>
-                            <h4 className="mb-0 fw-bold text-dark">ChainPay Dashboard</h4>
-                            {currentUser && <small className="text-muted">Xin chào, <strong>{currentUser.username}</strong></small>}
-                        </div>
+            {/* --- NAVBAR --- */}
+            <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 sm:px-10 py-4 flex justify-between items-center sticky top-0 z-40 shadow-sm">
+                <div className="flex items-center gap-4">
+                    <div className="bg-gradient-to-br from-[#6C5CE7] to-[#A29BFE] p-2.5 rounded-xl text-white shadow-lg shadow-[#6C5CE7]/30">
+                        <FaCubes size={22} />
                     </div>
-                    <button onClick={logout} className="btn btn-outline-danger rounded-pill px-4">
-                        <FaSignOutAlt className="me-2"/> Đăng Xuất
-                    </button>
+                    <div>
+                        <h1 className="text-xl font-extrabold text-slate-900 tracking-tight">ChainPay <span className="font-light">Wallet</span></h1>
+                        {currentUser && <span className="text-[10px] uppercase tracking-widest text-[#6C5CE7] font-bold mt-0.5 block">Hi, @{currentUser.username}</span>}
+                    </div>
                 </div>
+                <button onClick={logout} className="flex items-center gap-2 bg-white hover:bg-red-50 text-slate-600 hover:text-red-500 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 border border-slate-200 shadow-sm">
+                    <FaSignOutAlt /> <span className="hidden sm:inline">Đăng Xuất</span>
+                </button>
+            </nav>
 
-                <div className="row g-4">
-                    {/* --- CỘT TRÁI --- */}
-                    <div className="col-lg-4">
-                        <div className="card border-0 shadow-lg rounded-4 overflow-hidden mb-4 text-white" style={{ background: 'linear-gradient(135deg, #667eea 0%, #764ba2 100%)' }}>
-                            <div className="card-body p-4">
-                                <div className="d-flex align-items-center justify-content-between mb-4">
-                                    <h5 className="mb-0 fw-bold"><FaWallet className="me-2"/> Ví Web3</h5>
-                                    <span className="badge bg-white text-primary rounded-pill">MetaMask</span>
+            <main className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
+                <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    
+                    {/* --- CỘT TRÁI (THÔNG TIN & KẾT NỐI VÍ) --- */}
+                    <div className="lg:col-span-4 flex flex-col gap-6">
+                        
+                        {/* Box Kết nối ví (Gradient Tím) */}
+                        <div className="bg-gradient-to-br from-[#6C5CE7] to-[#A29BFE] rounded-[32px] shadow-xl shadow-[#6C5CE7]/20 p-6 text-white relative overflow-hidden">
+                            <div className="absolute -right-10 -bottom-10 opacity-10">
+                                <FaWallet size={150} />
+                            </div>
+                            <div className="relative z-10">
+                                <div className="flex items-center justify-between mb-6">
+                                    <h5 className="font-black text-lg flex items-center gap-2"><FaWallet /> Ví Web3</h5>
+                                    <span className="bg-white/20 px-3 py-1 rounded-full text-xs font-bold backdrop-blur-sm">MetaMask</span>
                                 </div>
-                                <div className="bg-white bg-opacity-25 p-3 rounded-3 mb-3">
+                                <div className="bg-white/10 p-4 rounded-2xl backdrop-blur-md border border-white/20">
                                     <WalletConnect />
                                 </div>
                             </div>
                         </div>
 
-                        {/* --- BẢNG THÔNG TIN TÀI KHOẢN (ĐÃ ĐƯỢC NÂNG CẤP) --- */}
-                        <div className="card border-0 shadow-sm rounded-4 mb-4">
-                            <div className="card-body p-4">
-                                <h6 className="fw-bold text-muted text-uppercase mb-4 small"><FaInfoCircle className="me-1"/> Hồ Sơ Của Tôi</h6>
-                                
-                                {currentUser ? (
-                                    <div>
-                                        {/* Avatar & Tên */}
-                                        <div className="d-flex align-items-center gap-3 mb-4">
-                                            <FaUserCircle className="text-secondary opacity-75" style={{ fontSize: '3.5rem' }}/>
-                                            <div style={{overflow: 'hidden'}}>
-                                                <div className="fw-bold text-dark fs-5">{currentUser.fullName || 'Chưa cập nhật tên'}</div>
-                                                <div className="small text-muted d-flex align-items-center gap-2 mt-1">
-                                                    <span className="badge bg-light text-dark border">ID: #{currentUser.id || '---'}</span>
-                                                    <span>@{currentUser.username}</span>
-                                                </div>
-                                            </div>
+                        {/* Box Hồ sơ của tôi */}
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6">
+                            <h6 className="font-black text-slate-900 text-sm flex items-center gap-2 mb-6 uppercase tracking-wider">
+                                <FaInfoCircle className="text-[#6C5CE7]" /> Hồ Sơ Của Tôi
+                            </h6>
+                            
+                            {currentUser ? (
+                                <div className="flex flex-col gap-6">
+                                    {/* Avatar & Tên */}
+                                    <div className="flex items-center gap-4">
+                                        <div className="w-14 h-14 bg-[#6C5CE7]/10 text-[#6C5CE7] rounded-full flex items-center justify-center font-black text-2xl shadow-inner">
+                                            {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
                                         </div>
-
-                                        {/* Địa chỉ Ví */}
-                                        <div className="bg-light p-3 rounded-3 border mb-3">
-                                            <div className="d-flex justify-content-between align-items-center mb-1">
-                                                <small className="text-muted text-uppercase fw-bold" style={{fontSize: '0.7rem'}}>Địa chỉ Ví Liên Kết</small>
-                                                <button 
-                                                    onClick={() => copyToClipboard(currentUser.walletAddress)} 
-                                                    className="btn btn-sm btn-link text-decoration-none p-0"
-                                                    title="Copy địa chỉ ví"
-                                                >
-                                                    {copied ? <FaCheckCircle className="text-success" /> : <FaCopy className="text-primary" />}
-                                                </button>
-                                            </div>
-                                            <div className="font-monospace text-truncate text-dark fw-medium" style={{ fontSize: '0.85rem' }}>
-                                                {currentUser.walletAddress}
-                                            </div>
-                                        </div>
-
-                                        {/* Số dư hiện tại */}
-                                        <div className="p-3 rounded-3 border" style={{ backgroundColor: '#f8f9ff', borderColor: '#dbeafe' }}>
-                                            <small className="text-primary d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Số dư khả dụng (Contract)</small>
-                                            <div className="d-flex align-items-baseline gap-2">
-                                                <span className="fw-bold fs-3 text-primary">{balance}</span>
-                                                <span className="fw-bold text-primary opacity-75 small">WEI</span>
+                                        <div>
+                                            <div className="font-bold text-slate-900 text-lg leading-tight">{currentUser.fullName || 'Chưa cập nhật tên'}</div>
+                                            <div className="text-xs text-slate-400 mt-1 flex gap-2">
+                                                <span className="bg-slate-100 px-2 py-0.5 rounded font-mono">ID: #{currentUser.id}</span>
                                             </div>
                                         </div>
                                     </div>
-                                ) : (
-                                    <div className="text-center py-4">
-                                        <div className="spinner-border text-primary" role="status"></div>
-                                        <div className="mt-2 small text-muted">Đang tải thông tin...</div>
+
+                                    {/* Địa chỉ Ví */}
+                                    <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 group">
+                                        <div className="flex justify-between items-center mb-1">
+                                            <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest">Địa chỉ Ví Liên Kết</small>
+                                            <button onClick={() => copyToClipboard(currentUser.walletAddress)} className="text-slate-400 hover:text-[#6C5CE7] transition-colors" title="Copy địa chỉ ví">
+                                                {copied ? <FaCheckCircle className="text-emerald-500" /> : <FaCopy />}
+                                            </button>
+                                        </div>
+                                        <div className="font-mono text-xs text-slate-600 truncate bg-white p-2 rounded-lg border border-slate-200">
+                                            {currentUser.walletAddress}
+                                        </div>
                                     </div>
-                                )}
-                            </div>
+
+                                    {/* Số dư hiện tại */}
+                                    <div className="bg-[#6C5CE7]/5 p-5 rounded-2xl border border-[#6C5CE7]/20">
+                                        <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest mb-1 block">Số dư khả dụng (Contract)</small>
+                                        <div className="flex items-baseline gap-2">
+                                            <span className="font-black text-3xl text-slate-900">{balance}</span>
+                                            <span className="font-bold text-slate-400 text-xs">WEI</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            ) : (
+                                <div className="text-center py-8">
+                                    <div className="w-8 h-8 border-4 border-[#6C5CE7]/30 border-t-[#6C5CE7] rounded-full animate-spin mx-auto mb-3"></div>
+                                    <div className="text-sm text-slate-400 font-medium">Đang tải thông tin...</div>
+                                </div>
+                            )}
                         </div>
                     </div>
 
-                    {/* --- CỘT PHẢI (Form gửi tiền & Lịch sử giữ nguyên như cũ) --- */}
-                    <div className="col-lg-8">
-                        <div className="card border-0 shadow-lg rounded-4 mb-4">
-                            <div className="card-header bg-white border-bottom-0 p-4 pb-0">
-                                <h5 className="fw-bold text-primary"><FaExchangeAlt className="me-2"/> Chuyển Tiền</h5>
+                    {/* --- CỘT PHẢI (CHUYỂN TIỀN & LỊCH SỬ) --- */}
+                    <div className="lg:col-span-8 flex flex-col gap-8">
+                        
+                        {/* Form Chuyển Tiền */}
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center gap-3">
+                                <div className="p-2.5 bg-[#6C5CE7]/10 text-[#6C5CE7] rounded-xl">
+                                    <FaExchangeAlt size={20} />
+                                </div>
+                                <div>
+                                    <h3 className="font-black text-slate-900 text-xl">Chuyển Tiền</h3>
+                                    <p className="text-xs text-slate-400 mt-1 font-medium">Thực hiện giao dịch qua Smart Contract</p>
+                                </div>
                             </div>
-                            <div className="card-body p-4">
-                                <form onSubmit={handleSend}>
-                                    <div className="mb-3">
-                                        <label className="form-label fw-bold small text-muted">Địa chỉ người nhận</label>
-                                        <input className="form-control bg-light fs-6" placeholder="0x..." value={toAddress} onChange={e => setToAddress(e.target.value)} required />
+                            
+                            <div className="p-6 sm:p-8">
+                                <form onSubmit={handleSend} className="flex flex-col gap-6">
+                                    <div>
+                                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider ml-1 mb-1.5 block">Địa chỉ người nhận</label>
+                                        <input className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-mono outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7] transition-all text-slate-800 shadow-sm" placeholder="0x..." value={toAddress} onChange={e => setToAddress(e.target.value)} required />
                                     </div>
-                                    <div className="mb-4">
-                                        <label className="form-label fw-bold small text-muted">Số tiền (Wei)</label>
-                                        <input type="number" className="form-control bg-light fs-6" placeholder="Nhập số WEI" value={amount} onChange={e => setAmount(e.target.value)} required />
+                                    
+                                    <div>
+                                        <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider ml-1 mb-1.5 block">Số tiền (Wei)</label>
+                                        <input type="number" className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7] transition-all text-slate-800 shadow-sm" placeholder="Nhập số lượng WEI..." value={amount} onChange={e => setAmount(e.target.value)} required />
                                     </div>
-                                    <button type="submit" className="btn btn-primary w-100 py-3 rounded-3 fw-bold shadow-sm" disabled={loading}>
-                                        {loading ? "Đang xử lý trên Blockchain..." : <><FaPaperPlane className="me-2"/> Gửi Tiền Ngay</>}
+                                    
+                                    <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#6C5CE7] to-[#A29BFE] text-white font-bold rounded-xl shadow-lg shadow-[#6C5CE7]/30 hover:shadow-[#6C5CE7]/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2" disabled={loading}>
+                                        {loading ? <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <><FaPaperPlane /> Xác nhận Giao dịch</>}
                                     </button>
                                 </form>
 
+                                {/* Kết quả Giao dịch */}
                                 {result && (
-                                    <div className={`alert mt-4 rounded-3 border-0 shadow-sm ${result.status === 'SUCCESS' ? 'alert-success' : 'alert-danger'}`}>
-                                        <h6 className="fw-bold">{result.status === 'SUCCESS' ? '✅ Giao Dịch Thành Công!' : '❌ Giao Dịch Thất Bại'}</h6>
-                                        <p className="mb-1 small">{result.message}</p>
-                                        {result.transactionHash && <div className="small font-monospace">Hash: {result.transactionHash}</div>}
+                                    <div className={`mt-6 p-4 rounded-xl border ${result.status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
+                                        <h6 className="font-bold mb-1 flex items-center gap-2">
+                                            {result.status === 'SUCCESS' ? <FaCheckCircle /> : <FaTimes />}
+                                            {result.status === 'SUCCESS' ? 'Giao dịch Thành Công!' : 'Giao dịch Thất Bại!'}
+                                        </h6>
+                                        <p className="text-sm opacity-90 mb-2">{result.message}</p>
+                                        {result.transactionHash && (
+                                            <div className="bg-white/50 p-2 rounded text-xs font-mono break-all border border-current/10">
+                                                Hash: {result.transactionHash}
+                                            </div>
+                                        )}
                                     </div>
                                 )}
                             </div>
                         </div>
 
-                        {/* LỊCH SỬ GIAO DỊCH */}
-                        <div className="card border-0 shadow-sm rounded-4">
-                            <div className="card-header bg-white border-bottom-0 p-4 pb-0 d-flex justify-content-between align-items-center">
-                                <h5 className="fw-bold text-dark"><FaHistory className="me-2"/> Lịch sử giao dịch</h5>
-                                <span className="badge bg-primary rounded-pill">{history.length} GD</span>
+                        {/* Bảng Lịch sử giao dịch */}
+                        <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
+                            <div className="p-6 sm:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
+                                <div className="flex items-center gap-3">
+                                    <div className="p-2.5 bg-slate-200 text-slate-600 rounded-xl"><FaHistory size={20} /></div>
+                                    <h3 className="font-black text-slate-900 text-xl">Lịch sử giao dịch</h3>
+                                </div>
+                                <span className="bg-slate-200 text-slate-600 px-3 py-1 rounded-full text-xs font-bold">{history.length} GD</span>
                             </div>
-                            <div className="card-body p-4">
-                                <div className="table-responsive">
-                                    <table className="table table-hover align-middle">
-                                        <thead className="table-light text-muted small">
-                                            <tr>
-                                                <th>Loại</th>
-                                                <th>Đối tác</th>
-                                                <th>Số tiền (WEI)</th>
-                                                <th>Trạng thái</th>
-                                                <th>Thời gian</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody>
-                                            {history.length > 0 ? history.map((tx) => {
-                                                const isSender = currentUser?.walletAddress.toLowerCase() === tx.fromAddress.toLowerCase();
-                                                return (
-                                                    <tr key={tx.id} onClick={() => setSelectedTx(tx)} style={{ cursor: 'pointer', transition: 'background-color 0.2s' }} title="Nhấn để xem chi tiết">
-                                                        <td>
-                                                            {isSender ? 
-                                                                <span className="badge bg-danger bg-opacity-10 text-danger border border-danger-subtle"><FaArrowUp className="me-1"/> Gửi</span> : 
-                                                                <span className="badge bg-success bg-opacity-10 text-success border border-success-subtle"><FaArrowDown className="me-1"/> Nhận</span>
-                                                            }
-                                                        </td>
-                                                        <td className="font-monospace small text-truncate" style={{maxWidth: '150px'}}>
+                            
+                            <div className="overflow-x-auto">
+                                <table className="w-full text-left">
+                                    <thead className="bg-white text-[10px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100">
+                                        <tr>
+                                            <th className="px-6 py-4">Hoạt động</th>
+                                            <th className="px-6 py-4">Đối tác</th>
+                                            <th className="px-6 py-4">Số lượng</th>
+                                            <th className="px-6 py-4">Trạng thái</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-slate-50 text-sm">
+                                        {history.length > 0 ? history.map((tx) => {
+                                            const isSender = currentUser?.walletAddress.toLowerCase() === tx.fromAddress.toLowerCase();
+                                            return (
+                                                <tr key={tx.id} onClick={() => setSelectedTx(tx)} className="hover:bg-slate-50 cursor-pointer transition-colors group">
+                                                    <td className="px-6 py-5">
+                                                        {isSender 
+                                                            ? <span className="inline-flex items-center gap-1.5 bg-red-50 text-red-600 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider"><FaArrowUp /> GỬI</span>
+                                                            : <span className="inline-flex items-center gap-1.5 bg-emerald-50 text-emerald-600 px-2.5 py-1 rounded-md text-[10px] font-bold tracking-wider"><FaArrowDown /> NHẬN</span>
+                                                        }
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="font-mono text-slate-500 text-xs truncate max-w-[120px] bg-white border border-slate-200 px-2 py-1 rounded-md group-hover:border-slate-300">
                                                             {isSender ? tx.toAddress : tx.fromAddress}
-                                                        </td>
-                                                        <td className={`fw-bold ${isSender ? 'text-danger' : 'text-success'}`}>
-                                                            {isSender ? '-' : '+'}{tx.amount}
-                                                        </td>
-                                                        <td>
-                                                            <span className={`badge ${tx.status === 'SUCCESS' ? 'bg-success' : tx.status === 'PENDING' ? 'bg-warning' : 'bg-danger'}`}>
+                                                        </div>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <span className={`font-black ${isSender ? 'text-red-500' : 'text-emerald-500'}`}>
+                                                            {isSender ? '-' : '+'}{tx.amount} <span className="text-[10px] text-slate-400">WEI</span>
+                                                        </span>
+                                                    </td>
+                                                    <td className="px-6 py-5">
+                                                        <div className="flex flex-col gap-1">
+                                                            <span className={`inline-flex w-fit px-2 py-0.5 rounded text-[9px] font-black uppercase tracking-wider ${tx.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : tx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
                                                                 {tx.status}
                                                             </span>
-                                                        </td>
-                                                        <td className="small text-muted">
-                                                            {new Date(tx.timestamp).toLocaleString('vi-VN')}
-                                                        </td>
-                                                    </tr>
-                                                );
-                                            }) : (
-                                                <tr>
-                                                    <td colSpan={5} className="text-center text-muted py-4">Chưa có giao dịch nào.</td>
+                                                            <span className="text-[10px] text-slate-400">{new Date(tx.timestamp).toLocaleDateString('vi-VN')}</span>
+                                                        </div>
+                                                    </td>
                                                 </tr>
-                                            )}
-                                        </tbody>
-                                    </table>
-                                </div>
+                                            );
+                                        }) : (
+                                            <tr>
+                                                <td colSpan={4} className="text-center text-slate-400 py-12 italic">Chưa có giao dịch nào trên mạng lưới.</td>
+                                            </tr>
+                                        )}
+                                    </tbody>
+                                </table>
                             </div>
                         </div>
                     </div>
                 </div>
-            </div>
+            </main>
 
-            {/* MODAL CHI TIẾT GIAO DỊCH */}
+            {/* --- MODAL CHI TIẾT GIAO DỊCH (Tailwind) --- */}
             {selectedTx && (
-                <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 1050, backdropFilter: 'blur(3px)' }} onClick={() => setSelectedTx(null)}>
-                    <div className="modal-dialog modal-dialog-centered" onClick={e => e.stopPropagation()}>
-                        <div className="modal-content border-0 shadow-lg rounded-4 overflow-hidden">
-                            <div className="modal-header bg-light border-bottom-0 p-4 pb-3">
-                                <h5 className="modal-title fw-bold text-dark d-flex align-items-center gap-2">
-                                    <FaInfoCircle className="text-primary" /> Chi Tiết Giao Dịch
-                                </h5>
-                                <button type="button" className="btn-close" onClick={() => setSelectedTx(null)}></button>
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedTx(null)}>
+                    <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
+                        
+                        <div className="p-6 border-b border-slate-100 flex justify-between items-center bg-slate-50">
+                            <h5 className="font-black text-slate-900 text-lg flex items-center gap-2">
+                                <FaInfoCircle className="text-[#6C5CE7]" /> Chi Tiết Giao Dịch
+                            </h5>
+                            <button onClick={() => setSelectedTx(null)} className="p-2 bg-white text-slate-400 hover:text-slate-800 rounded-full hover:bg-slate-200 transition-colors"><FaTimes /></button>
+                        </div>
+                        
+                        <div className="p-6 sm:p-8 flex flex-col gap-5">
+                            <div className="text-center">
+                                <span className={`inline-block px-4 py-1.5 rounded-full text-xs font-black tracking-widest uppercase ${selectedTx.status === 'SUCCESS' ? 'bg-emerald-100 text-emerald-700' : selectedTx.status === 'PENDING' ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+                                    {selectedTx.status === 'SUCCESS' ? '✅ Thành Công' : selectedTx.status === 'PENDING' ? '⏳ Đang xử lý' : '❌ Thất Bại'}
+                                </span>
                             </div>
-                            <div className="modal-body p-4 pt-2">
-                                <div className="text-center mb-4">
-                                    <span className={`badge fs-6 px-4 py-2 rounded-pill ${selectedTx.status === 'SUCCESS' ? 'bg-success' : selectedTx.status === 'PENDING' ? 'bg-warning' : 'bg-danger'}`}>
-                                        {selectedTx.status === 'SUCCESS' ? '✅ THÀNH CÔNG' : selectedTx.status === 'PENDING' ? '⏳ ĐANG XỬ LÝ' : '❌ THẤT BẠI'}
-                                    </span>
+
+                            <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                                <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest mb-1 block">Mã Hash (TxHash)</small>
+                                <div className="font-mono text-xs text-slate-700 break-all bg-white p-2 rounded-lg border border-slate-200">
+                                    {selectedTx.transactionHash || 'Chưa có trên mạng lưới'}
                                 </div>
-                                <div className="bg-light p-3 rounded-3 mb-3 border">
-                                    <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Mã Hash (TxHash)</small>
-                                    <div className="font-monospace text-break small text-dark">
-                                        {selectedTx.transactionHash || 'Chưa có trên mạng lưới'}
-                                    </div>
-                                </div>
-                                <div className="row g-3 mb-3">
-                                    <div className="col-12">
-                                        <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Từ (Người Gửi)</small>
-                                        <div className="font-monospace small text-truncate bg-light p-2 rounded border">{selectedTx.fromAddress}</div>
-                                    </div>
-                                    <div className="col-12">
-                                        <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Đến (Người Nhận)</small>
-                                        <div className="font-monospace small text-truncate bg-light p-2 rounded border">{selectedTx.toAddress}</div>
-                                    </div>
-                                </div>
-                                <div className="row g-3">
-                                    <div className="col-6">
-                                        <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Số Tiền</small>
-                                        <div className="fw-bold fs-5 text-primary">{selectedTx.amount} <span className="fs-6 text-muted">WEI</span></div>
-                                    </div>
-                                    <div className="col-6">
-                                        <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Số Block</small>
-                                        <div className="fw-bold text-dark fs-5">{selectedTx.blockNumber || '---'}</div>
-                                    </div>
-                                </div>
-                                <hr className="my-3 text-muted" />
+                            </div>
+
+                            <div className="grid grid-cols-1 gap-4">
                                 <div>
-                                    <small className="text-muted d-block text-uppercase fw-bold mb-1" style={{fontSize: '0.7rem'}}>Thời gian tạo</small>
-                                    <div className="text-dark fw-medium">{new Date(selectedTx.timestamp).toLocaleString('vi-VN')}</div>
+                                    <small className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1 block">Từ (Người Gửi)</small>
+                                    <div className="font-mono text-xs text-slate-600 truncate bg-slate-50 p-2.5 rounded-xl border border-slate-100">{selectedTx.fromAddress}</div>
+                                </div>
+                                <div>
+                                    <small className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1 block">Đến (Người Nhận)</small>
+                                    <div className="font-mono text-xs text-slate-600 truncate bg-slate-50 p-2.5 rounded-xl border border-slate-100">{selectedTx.toAddress}</div>
                                 </div>
                             </div>
-                            <div className="modal-footer border-top-0 p-4 pt-0">
-                                <button type="button" className="btn btn-secondary w-100 py-2 rounded-3 fw-bold" onClick={() => setSelectedTx(null)}>Đóng Cửa Sổ</button>
+
+                            <div className="grid grid-cols-2 gap-4 border-t border-slate-100 pt-5 mt-2">
+                                <div>
+                                    <small className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1 block">Số Tiền</small>
+                                    <div className="font-black text-xl text-[#6C5CE7]">{selectedTx.amount} <span className="text-xs text-slate-500">WEI</span></div>
+                                </div>
+                                <div>
+                                    <small className="text-slate-400 font-bold text-[10px] uppercase tracking-widest mb-1 block">Block</small>
+                                    <div className="font-bold text-lg text-slate-800">{selectedTx.blockNumber || '---'}</div>
+                                </div>
                             </div>
+
+                            <div className="text-center text-xs text-slate-400 font-medium mt-2">
+                                {new Date(selectedTx.timestamp).toLocaleString('vi-VN')}
+                            </div>
+                        </div>
+
+                        <div className="p-4 border-t border-slate-100 bg-slate-50">
+                            <button className="w-full py-3.5 bg-slate-900 hover:bg-black text-white font-bold rounded-xl transition-colors" onClick={() => setSelectedTx(null)}>Đóng Cửa Sổ</button>
                         </div>
                     </div>
                 </div>
