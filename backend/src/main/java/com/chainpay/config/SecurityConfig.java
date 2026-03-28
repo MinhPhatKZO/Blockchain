@@ -84,6 +84,8 @@ public class SecurityConfig {
                 .requestMatchers("/api/auth/**").permitAll() 
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/error").permitAll() // Quan trọng: Để hiện lỗi 404/500 thay vì 403
+
+                .requestMatchers("/ws/**").permitAll() // Cho phép kết nối WebSocket mà không cần Token (Token sẽ được gửi trong payload sau khi kết nối)
                 
                 // --- THÊM MỚI: ĐƯỜNG DẪN DÀNH RIÊNG CHO ADMIN ---
                 .requestMatchers("/api/admin/**").hasRole("ADMIN") // Chỉ tài khoản có quyền ADMIN mới được truy cập

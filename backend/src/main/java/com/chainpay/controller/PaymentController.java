@@ -23,6 +23,7 @@ import com.chainpay.entity.User;
 import com.chainpay.repository.UserRepository;
 import com.chainpay.service.ChainPayContractService;
 import com.chainpay.service.PaymentService;
+import com.chainpay.repository.TransactionRepository;
 
 @RestController
 @RequestMapping("/api/payment")
@@ -36,6 +37,9 @@ public class PaymentController {
 
     @Autowired
     private ChainPayContractService contractService;
+
+    @Autowired
+    private TransactionRepository transactionRepository;
 
     // Lấy Private Key Admin để dùng cho API nạp tiền
     @Value("${blockchain.private-key}")

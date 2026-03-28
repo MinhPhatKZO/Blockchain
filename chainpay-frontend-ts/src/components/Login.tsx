@@ -48,7 +48,7 @@ const Login: React.FC = () => {
             if (decoded.role === 'ROLE_ADMIN') {
                 navigate('/admin'); 
             } else {
-                navigate('/dashboard'); 
+                navigate('/products'); 
             }
 
         } catch (error: any) {

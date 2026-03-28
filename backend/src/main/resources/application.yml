@@ -3,9 +3,9 @@ spring:
     name: chainpay-backend
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/blockchain_db
+    url: jdbc:postgresql://localhost:5432/chainpay
     username: postgres
-    password: 123456
+    password: 
     driver-class-name: org.postgresql.Driver
   
   jpa:

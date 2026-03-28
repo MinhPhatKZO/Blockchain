@@ -6,6 +6,9 @@ import 'bootstrap/dist/css/bootstrap.min.css';
 import Login from './components/Login';
 import Register from './components/Register';
 import Dashboard from './components/Dashboard';
+import Products from './components/Products';
+import ProductDetail from './components/ProductDetail';
+import Profile from './components/Profile';
 
 // --- IMPORT THÊM CÁC COMPONENT ADMIN ---
 // (Đảm bảo bạn đã tạo 2 file này trong thư mục components nhé)
@@ -21,8 +24,10 @@ const App: React.FC = () => {
         <Route path="/register" element={<Register />} />
         
         {/* Khu vực User bình thường */}
+        <Route path="/products" element={<Products />} />
+        <Route path="/products/:id" element={<ProductDetail />} />
         <Route path="/dashboard" element={<Dashboard />} />
-
+        <Route path="/profile" element={<Profile />} />
         {/* --- KHU VỰC BẢO VỆ DÀNH RIÊNG CHO ADMIN --- */}
         {/* Bất cứ Route nào nằm gọn trong thẻ <AdminRoute> đều sẽ bị kiểm tra Token */}
         <Route element={<AdminRoute />}>
