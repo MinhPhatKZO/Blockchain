@@ -1,5 +1,5 @@
 import React from 'react';
-import { FaUserPlus, FaTrashAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
+import { FaTrashAlt, FaChevronLeft, FaChevronRight } from 'react-icons/fa';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts';
 
 interface Props {
@@ -23,7 +23,6 @@ const UserManagement: React.FC<Props> = ({ users, searchTerm, userPage, setUserP
       <div className="lg:col-span-5 flex flex-col h-[600px] bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
         <div className="p-6 border-b border-slate-100 flex justify-between items-center">
           <h3 className="font-black text-slate-900 text-lg">Danh sách Users</h3>
-          <button onClick={onAdd} className="p-3 bg-[#6C5CE7] text-white rounded-xl shadow-lg hover:scale-105 transition-transform"><FaUserPlus /></button>
         </div>
         <div className="overflow-y-auto flex-1 p-2">
           {data.map(u => (
