@@ -13,6 +13,7 @@ import org.web3j.protocol.core.methods.response.TransactionReceipt;
 
 import com.chainpay.entity.Transaction;
 import com.chainpay.entity.TransactionStatus;
+import com.chainpay.repository.ProductRepository;
 import com.chainpay.repository.TransactionRepository;
 
 @Service
@@ -23,73 +24,83 @@ public class PaymentService {
     @Autowired
     private TransactionRepository transactionRepository;
 
-    // 1. Mở khóa Service giao tiếp Blockchain
+    @Autowired
+    private ProductRepository productRepository;
+
     @Autowired
     private ChainPayContractService contractService;
 
-    // 2. Lấy Private Key của Admin từ file application.yml để ký giao dịch
     @Value("${blockchain.private-key}")
     private String adminPrivateKey;
 
-    // --- HÀM XỬ LÝ THANH TOÁN (DỮ LIỆU THẬT) ---
     public Transaction processPayment(String fromAddress, String toAddress, String amountStr) {
-        
         BigInteger amountBigInt = new BigInteger(amountStr);
 
         Transaction transaction = new Transaction();
         transaction.setFromAddress(fromAddress);
         transaction.setToAddress(toAddress);
-        transaction.setAmount(new BigDecimal(amountBigInt)); 
+        transaction.setAmount(new BigDecimal(amountBigInt));
         transaction.setStatus(TransactionStatus.PENDING.name());
         transaction.setTimestamp(LocalDateTime.now());
-        
-        // Lưu DB trạng thái PENDING trước khi ném lên Blockchain
+
         transaction = transactionRepository.save(transaction);
 
         try {
-            logger.info("Bắt đầu xử lý giao dịch thực tế lên Blockchain...");
-            
-            // --- LOGIC BLOCKCHAIN THẬT ---
-            // 1. Gửi lệnh chuyển tiền vào Smart Contract
+            logger.info("Bat dau xu ly giao dich len Blockchain...");
+
             String txHash = contractService.sendPayment(adminPrivateKey, toAddress, amountBigInt);
-            
-            // 2. Chờ Smart Contract xác nhận (Đã bao gồm check lỗi Revert ở bước trước)
             TransactionReceipt receipt = contractService.waitForTransactionReceipt(txHash);
-            
-            // 3. Cập nhật dữ liệu thật từ Ganache vào Database
+
             transaction.setTxHash(txHash);
             transaction.setStatus(TransactionStatus.SUCCESS.name());
-            transaction.setBlockNumber(receipt.getBlockNumber()); // Số Block thật
+            transaction.setBlockNumber(receipt.getBlockNumber());
             transaction.setConfirmedAt(LocalDateTime.now());
-            
-            logger.info("Giao dịch hoàn tất 100%. Hash: {}", txHash);
 
+            logger.info("Giao dich hoan tat. Hash: {}", txHash);
         } catch (Exception e) {
-            logger.error("Lỗi giao dịch Blockchain: ", e);
+            logger.error("Loi giao dich Blockchain:", e);
             transaction.setStatus(TransactionStatus.FAILED.name());
-            // Nếu bạn có cột lưu lý do lỗi, có thể thêm: transaction.setErrorMessage(e.getMessage());
         }
 
         return transactionRepository.save(transaction);
     }
 
-    // --- HÀM LẤY SỐ DƯ (DỮ LIỆU THẬT) ---
     public BigInteger getBalance(String address) throws Exception {
-        // Trực tiếp gọi xuống mapping `balances` của Smart Contract
         return contractService.getBalance(address);
     }
-    
-    // --- HÀM GHI NHẬN GIAO DỊCH TỪ METAMASK ---
-    public Transaction recordExternalPayment(String fromAddress, String toAddress, String amountStr, String txHash) {
+
+    public Transaction recordExternalPayment(
+            String fromAddress,
+            String toAddress,
+            String amountStr,
+            String txHash,
+            Long productId) {
         Transaction tx = new Transaction();
         tx.setFromAddress(fromAddress);
         tx.setToAddress(toAddress);
         tx.setAmount(new BigDecimal(amountStr));
-        tx.setStatus(TransactionStatus.SUCCESS.name()); // Mặc định thành công vì MetaMask đã xử lý xong
+        tx.setStatus(TransactionStatus.SUCCESS.name());
         tx.setTxHash(txHash);
         tx.setTimestamp(LocalDateTime.now());
         tx.setConfirmedAt(LocalDateTime.now());
-        
+
+        if (productId != null) {
+            var product = productRepository.findById(productId)
+                    .orElseThrow(() -> new RuntimeException("Khong tim thay san pham phu hop!"));
+
+            if (product.getPriceWei() == null || product.getPriceWei().isBlank()) {
+                throw new RuntimeException("San pham chua duoc cau hinh gia Wei!");
+            }
+
+            BigInteger expectedAmount = new BigInteger(product.getPriceWei());
+            BigInteger actualAmount = new BigInteger(amountStr);
+            if (!expectedAmount.equals(actualAmount)) {
+                throw new RuntimeException("So tien thanh toan khong khop voi gia san pham!");
+            }
+
+            tx.setProductId(product.getId());
+        }
+
         return transactionRepository.save(tx);
     }
 }

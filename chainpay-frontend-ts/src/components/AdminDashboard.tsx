@@ -90,17 +90,14 @@ const AdminDashboard: React.FC = () => {
 
     try {
       const ethValue = parseFloat(productForm.priceEth);
-      
-      // Tính toán Wei: 1 ETH = 10^18 Wei
-      // Chúng ta dùng BigInt để xử lý con số cực lớn này mà không bị sai số
+
       const weiValue = (BigInt(Math.floor(ethValue * 1e9)) * BigInt(1e9)).toString();
 
-      // Payload phải khớp chính xác với tên biến trong file Product.java (Backend)
       const payload = {
         name: productForm.name,
         description: productForm.description || "Chưa có mô tả",
-        priceEth: ethValue.toString(), // Entity Java nhận String
-        priceWei: weiValue,            // TRƯỜNG QUAN TRỌNG: Backend đang bắt buộc (nullable=false)
+        priceEth: ethValue.toString(),
+        priceWei: weiValue,
         imageUrl: productForm.imageUrl || "https://via.placeholder.com/300"
       };
 
@@ -137,11 +134,11 @@ const AdminDashboard: React.FC = () => {
     return user ? user.fullName : `${addr.substring(0, 6)}...`;
   };
 
-  const chartData = useMemo(() => 
+  const chartData = useMemo(() =>
     transactions.slice(0, 10).map(tx => ({
       time: new Date(tx.createdAt).toLocaleDateString('vi-VN', {day:'2-digit', month:'2-digit'}),
       amount: parseFloat(tx.amount) || 0
-    })).reverse(), 
+    })).reverse(),
   [transactions]);
 
   if (loading) return <div className="h-screen flex items-center justify-center font-bold text-[#6C5CE7]">Đang tải dữ liệu Blockchain...</div>;

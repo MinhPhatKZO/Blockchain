@@ -1,11 +1,13 @@
 spring:
+  config:
+    import: optional:file:.env[.properties],optional:file:../.env[.properties]
   application:
     name: chainpay-backend
   
   datasource:
-    url: jdbc:postgresql://localhost:5432/chainpay
-    username: postgres
-    password: 
+    url: ${CHAINPAY_DB_URL:jdbc:postgresql://localhost:5432/chainpay}
+    username: ${CHAINPAY_DB_USERNAME:postgres}
+    password: ${CHAINPAY_DB_PASSWORD:000000}
     driver-class-name: org.postgresql.Driver
   
   jpa:
@@ -18,19 +20,20 @@ spring:
         format_sql: true
 
 server:
-  port: 8080
+  port: ${CHAINPAY_BACKEND_PORT:8080}
   # ĐÃ XÓA DÒNG context-path ĐỂ TRÁNH LỖI KÉP /api/api
 
 # Blockchain Configuration
 
 blockchain:
-  network-url: http://127.0.0.1:7545
-  contract-address: "0x155bF19F19Ce8EB4E6df40013168F22407FEC1e1"
-  private-key: "0x003a9c6bfb61cfe46d012bb000275a6c21f4d7e3d10f90b1489844ad931c3a36"
-  gas-price: 20000000000
-  gas-limit: 3000000
+  network-url: ${CHAINPAY_RPC_URL:http://127.0.0.1:7545}
+  contract-address: ${CHAINPAY_CONTRACT_ADDRESS:0xf03B4a6FD4e791380f25f6d5D8e4B9628f5e782a}
+  private-key: ${CHAINPAY_ADMIN_PRIVATE_KEY:0x2589d133d475c526257b2ecc802af9c7f5ad3066a77825bdb86e783725d7be18}
+  store-wallet-address: ${CHAINPAY_STORE_WALLET_ADDRESS:}
+  gas-price: ${CHAINPAY_GAS_PRICE:20000000000}
+  gas-limit: ${CHAINPAY_GAS_LIMIT:3000000}
 
 # JWT Configuration
 jwt:
-  secret: 9a4f2c8d3b7e1f6a5g0h2j4k8l3n7p9q2r5t8v1x4z6m3w7y0s2u5i8o
-  expiration: 86400000
+  secret: ${CHAINPAY_JWT_SECRET:9a4f2c8d3b7e1f6a5g0h2j4k8l3n7p9q2r5t8v1x4z6m3w7y0s2u5i8o}
+  expiration: ${CHAINPAY_JWT_EXPIRATION:86400000}

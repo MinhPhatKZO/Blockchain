@@ -27,13 +27,11 @@ public class UserController {
     // 1. API lấy thông tin người dùng đang đăng nhập
     @GetMapping("/me")
     public ResponseEntity<?> getCurrentUser() {
-        // Lấy username từ Token JWT hiện tại
         String username = SecurityContextHolder.getContext().getAuthentication().getName();
         
         User user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new RuntimeException("Không tìm thấy user"));
         
-        // Không trả về password cho an toàn
         user.setPassword(null); 
         return ResponseEntity.ok(user);
     }

@@ -1,6 +1,8 @@
+const path = require("path");
+
+require("dotenv").config({ path: path.resolve(__dirname, "..", ".env") });
 require("@nomicfoundation/hardhat-toolbox");
 require("@nomicfoundation/hardhat-verify");
-require("dotenv").config()
 
 /** @type import('hardhat/config').HardhatUserConfig */
 module.exports = {
@@ -15,10 +17,10 @@ module.exports = {
   },
   networks: {
     ganache: {
-      url: process.env.GANACHE_RPC_URL,
-      accounts: [
-        process.env.GANACHE_PRIVATE_KEY
-      ]
+      url: process.env.CHAINPAY_RPC_URL || process.env.GANACHE_RPC_URL,
+      accounts: (process.env.CHAINPAY_ADMIN_PRIVATE_KEY || process.env.GANACHE_PRIVATE_KEY)
+        ? [process.env.CHAINPAY_ADMIN_PRIVATE_KEY || process.env.GANACHE_PRIVATE_KEY]
+        : []
     },
     sepolia: {
       url: `https://sepolia.infura.io/v3/${process.env.INFURA_API_KEY}`,

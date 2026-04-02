@@ -82,6 +82,7 @@ public class SecurityConfig {
             .authorizeHttpRequests(auth -> auth
                 // --- CÁC ĐƯỜNG DẪN KHÔNG CẦN LOGIN ---
                 .requestMatchers("/api/auth/**").permitAll() 
+                .requestMatchers("/api/public/**").permitAll()
                 .requestMatchers("/auth/**").permitAll()
                 .requestMatchers("/error").permitAll() // Quan trọng: Để hiện lỗi 404/500 thay vì 403
 

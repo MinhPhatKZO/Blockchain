@@ -66,7 +66,7 @@ public class AdminController {
     }
 
     // Thêm sản phẩm mới
-   @PostMapping("/products")
+    @PostMapping("/products")
     public ResponseEntity<Product> addProduct(@RequestBody Product product) {
         // Nếu FE quên gửi priceWei, Backend sẽ tự tính dựa trên priceEth
         if (product.getPriceWei() == null || product.getPriceWei().isEmpty()) {
@@ -96,10 +96,8 @@ public class AdminController {
         return ResponseEntity.ok(Map.of("message", "Đã xóa sản phẩm khỏi kho!"));
     }
 
-    // --- 4. XEM LỊCH SỬ GIAO DỊCH (TRANSACTIONS) ---
     @GetMapping("/transactions")
     public ResponseEntity<List<Transaction>> getAllTransactions() {
-        // Bạn có thể dùng Sort.by(Sort.Direction.DESC, "createdAt") nếu muốn tin mới lên đầu
         return ResponseEntity.ok(transactionRepository.findAll());
     }
 }

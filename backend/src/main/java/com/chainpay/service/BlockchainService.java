@@ -41,6 +41,14 @@ public class BlockchainService {
     public String getContractAddress() {
         return contractAddress;
     }
+
+    public String getChainId() {
+        try {
+            return web3j.ethChainId().send().getChainId().toString();
+        } catch (Exception e) {
+            return "";
+        }
+    }
     
     /**
      * Convert Wei to Ether
