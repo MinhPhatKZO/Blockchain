@@ -1,5 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import Web3 from 'web3';
+
+import { commonText, walletText } from '../text';
 
 interface WalletConnectProps {
     onAddressChange?: (address: string) => void;
@@ -7,9 +9,8 @@ interface WalletConnectProps {
 
 const WalletConnect: React.FC<WalletConnectProps> = ({ onAddressChange }) => {
     const [account, setAccount] = useState<string | null>(null);
-    const [error, setError] = useState<string>('');
+    const [error, setError] = useState('');
 
-    // Hàm lấy đối tượng ethereum an toàn
     const getEthereum = () => (window as any).ethereum;
 
     useEffect(() => {
@@ -23,10 +24,9 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ onAddressChange }) => {
                         handleAccountChange(accounts[0]);
                     }
                 } catch (err) {
-                    console.error("Lỗi tự động kết nối:", err);
+                    console.error(err);
                 }
 
-                // Lắng nghe sự kiện đổi ví
                 ethereum.on('accountsChanged', (accounts: string[]) => {
                     if (accounts.length > 0) {
                         handleAccountChange(accounts[0]);
@@ -38,14 +38,14 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ onAddressChange }) => {
         };
 
         checkConnection();
-        
+
         return () => {
             const ethereum = getEthereum();
             if (ethereum && ethereum.removeListener) {
                 ethereum.removeListener('accountsChanged', handleAccountChange);
             }
         };
-    // eslint-disable-next-line
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     const handleAccountChange = (newAccount: string) => {
@@ -63,40 +63,40 @@ const WalletConnect: React.FC<WalletConnectProps> = ({ onAddressChange }) => {
                 await ethereum.request({ method: 'eth_requestAccounts' });
                 const web3 = new Web3(ethereum);
                 const accounts = await web3.eth.getAccounts();
-                
+
                 if (accounts.length > 0) {
                     handleAccountChange(accounts[0]);
                 }
             } catch (err: any) {
                 if (err.code === 4001) {
-                    setError('Bạn đã từ chối kết nối!');
+                    setError(walletText.connect.rejected);
                 } else {
-                    setError('Lỗi kết nối: ' + err.message);
+                    setError(walletText.connect.errorPrefix + err.message);
                 }
                 console.error(err);
             }
         } else {
-            setError('Vui lòng cài đặt MetaMask!');
+            setError(walletText.connect.installMetaMask);
         }
     };
 
     return (
         <div className="mb-3">
             {error && <div className="alert alert-danger p-2 small">{error}</div>}
-            
+
             {account ? (
                 <div className="alert alert-success d-flex align-items-center justify-content-between p-2">
-                    <div className="d-flex flex-column" style={{overflow: 'hidden'}}>
-                        <small className="text-muted" style={{fontSize: '0.75rem'}}>Ví đã kết nối:</small>
-                        <strong style={{fontSize: '0.9rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden'}}>
+                    <div className="d-flex flex-column" style={{ overflow: 'hidden' }}>
+                        <small className="text-muted" style={{ fontSize: '0.75rem' }}>{walletText.connect.connectedLabel}</small>
+                        <strong style={{ fontSize: '0.9rem', textOverflow: 'ellipsis', whiteSpace: 'nowrap', overflow: 'hidden' }}>
                             {account.substring(0, 6)}...{account.substring(account.length - 4)}
                         </strong>
                     </div>
-                    <span className="badge bg-success ms-2">Active</span>
+                    <span className="badge bg-success ms-2">{commonText.labels.active}</span>
                 </div>
             ) : (
                 <button type="button" onClick={connectWallet} className="btn btn-outline-warning w-100 fw-bold">
-                    🦊 Kết nối MetaMask
+                    {walletText.connect.connectButton}
                 </button>
             )}
         </div>

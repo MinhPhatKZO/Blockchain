@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, ReactNode } from 'react';
+import { commonText } from '../text';
 import { AuthContextType, User } from '../types';
 
 // Khởi tạo Context
@@ -28,7 +29,7 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
 export const useAuth = (): AuthContextType => {
     const context = useContext(AuthContext);
     if (!context) {
-        throw new Error('useAuth must be used within an AuthProvider');
+        throw new Error(commonText.errors.authProviderRequired);
     }
     return context;
 };

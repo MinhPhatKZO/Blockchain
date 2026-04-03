@@ -1,7 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import axiosClient from '../api/axiosClient';
 import { FaArrowRight, FaBoxOpen } from 'react-icons/fa';
+
+import axiosClient from '../api/axiosClient';
+import { commonText, productsText } from '../text';
 import Navbar from '../components/Navbar';
 
 export interface Product {
@@ -15,15 +17,15 @@ export interface Product {
 
 const Products: React.FC = () => {
     const [products, setProducts] = useState<Product[]>([]);
-    const [loading, setLoading] = useState<boolean>(true);
+    const [loading, setLoading] = useState(true);
 
     useEffect(() => {
         const fetchProducts = async () => {
             try {
-                const res = await axiosClient.get<Product[]>('/products');
-                setProducts(res.data);
+                const response = await axiosClient.get<Product[]>('/products');
+                setProducts(response.data);
             } catch (error) {
-                console.error("Lỗi tải sản phẩm:", error);
+                console.error(error);
             } finally {
                 setLoading(false);
             }
@@ -32,61 +34,59 @@ const Products: React.FC = () => {
     }, []);
 
     return (
-        <div className="min-h-screen bg-[#f8fafc] font-sans pb-20 text-slate-800">
-            {/* Gọi Component Navbar dùng chung vào đây */}
+        <div className="min-h-screen bg-[#f8fafc] pb-20 font-sans text-slate-800">
             <Navbar />
 
-            <main className="max-w-7xl mx-auto px-6 sm:px-10 py-10">
-                {/* Header Section */}
+            <main className="mx-auto max-w-7xl px-6 py-10 sm:px-10">
                 <div className="mb-10">
-                    <h2 className="text-3xl sm:text-4xl font-black text-slate-900 mb-3 tracking-tight">Khám Phá Sản Phẩm</h2>
-                    <p className="text-slate-500 text-lg max-w-2xl">Sở hữu những vật phẩm kỹ thuật số độc quyền thanh toán hoàn toàn bằng Ethereum trên không gian Web3.</p>
+                    <h2 className="mb-3 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">{productsText.list.title}</h2>
+                    <p className="max-w-2xl text-lg text-slate-500">{productsText.list.description}</p>
                 </div>
 
                 {loading ? (
-                    <div className="text-center py-20 flex flex-col items-center gap-4">
-                        <div className="w-12 h-12 border-4 border-[#6C5CE7]/20 border-t-[#6C5CE7] rounded-full animate-spin"></div>
-                        <span className="font-bold text-slate-400 animate-pulse">Đang kết nối tới cửa hàng...</span>
+                    <div className="flex flex-col items-center gap-4 py-20 text-center">
+                        <div className="h-12 w-12 animate-spin rounded-full border-4 border-[#6C5CE7]/20 border-t-[#6C5CE7]"></div>
+                        <span className="animate-pulse font-bold text-slate-400">{productsText.list.loading}</span>
                     </div>
                 ) : products.length === 0 ? (
-                    <div className="bg-white rounded-[32px] border border-slate-200 shadow-sm p-16 flex flex-col items-center justify-center text-center">
-                        <div className="bg-slate-50 p-6 rounded-full mb-4">
+                    <div className="flex flex-col items-center justify-center rounded-[32px] border border-slate-200 bg-white p-16 text-center shadow-sm">
+                        <div className="mb-4 rounded-full bg-slate-50 p-6">
                             <FaBoxOpen size={48} className="text-slate-300" />
                         </div>
-                        <h3 className="text-xl font-bold text-slate-700 mb-2">Chưa có sản phẩm nào</h3>
-                        <p className="text-slate-500">Cửa hàng hiện tại đang trống. Bạn hãy quay lại sau nhé!</p>
+                        <h3 className="mb-2 text-xl font-bold text-slate-700">{productsText.list.emptyTitle}</h3>
+                        <p className="text-slate-500">{productsText.list.emptyDescription}</p>
                     </div>
                 ) : (
-                    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-8">
+                    <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
                         {products.map((product) => (
-                            <div key={product.id} className="bg-white rounded-[32px] shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all duration-300 border border-slate-200 overflow-hidden group flex flex-col">
+                            <div key={product.id} className="group flex flex-col overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-xl">
                                 <div className="overflow-hidden p-4 pb-0">
-                                    <img 
-                                        src={product.imageUrl} 
-                                        alt={product.name} 
-                                        className="w-full h-52 object-cover rounded-[24px] group-hover:scale-105 transition-transform duration-500 shadow-sm" 
+                                    <img
+                                        src={product.imageUrl}
+                                        alt={product.name}
+                                        className="h-52 w-full rounded-[24px] object-cover shadow-sm transition-transform duration-500 group-hover:scale-105"
                                     />
                                 </div>
-                                <div className="p-6 flex flex-col flex-grow justify-between gap-4">
+                                <div className="flex flex-grow flex-col justify-between gap-4 p-6">
                                     <div>
-                                        <h3 className="font-black text-slate-900 text-lg mb-1 truncate" title={product.name}>
+                                        <h3 className="mb-1 truncate text-lg font-black text-slate-900" title={product.name}>
                                             {product.name}
                                         </h3>
-                                        <p className="text-sm text-slate-500 line-clamp-2">
+                                        <p className="line-clamp-2 text-sm text-slate-500">
                                             {product.description}
                                         </p>
                                     </div>
                                     <div className="mt-auto">
-                                        <div className="bg-gradient-to-r from-[#6C5CE7]/5 to-transparent p-3 rounded-xl border border-[#6C5CE7]/10 mb-4 flex items-baseline gap-1.5">
-                                            <span className="font-black text-2xl text-[#6C5CE7]">{product.priceEth}</span>
-                                            <span className="font-bold text-slate-500 text-sm uppercase tracking-wider">ETH</span>
+                                        <div className="mb-4 flex items-baseline gap-1.5 rounded-xl border border-[#6C5CE7]/10 bg-gradient-to-r from-[#6C5CE7]/5 to-transparent p-3">
+                                            <span className="text-2xl font-black text-[#6C5CE7]">{product.priceEth}</span>
+                                            <span className="text-sm font-bold uppercase tracking-wider text-slate-500">{commonText.labels.eth}</span>
                                         </div>
-                                        <Link 
-                                            to={`/products/${product.id}`} 
-                                            className="group/btn w-full flex items-center justify-center gap-2 py-3.5 bg-slate-900 hover:bg-[#6C5CE7] text-white font-bold rounded-xl transition-all duration-300 shadow-md hover:shadow-lg hover:shadow-[#6C5CE7]/30"
+                                        <Link
+                                            to={`/products/${product.id}`}
+                                            className="group/btn flex w-full items-center justify-center gap-2 rounded-xl bg-slate-900 py-3.5 font-bold text-white shadow-md transition-all duration-300 hover:bg-[#6C5CE7] hover:shadow-lg hover:shadow-[#6C5CE7]/30"
                                         >
-                                            Xem Chi Tiết
-                                            <FaArrowRight className="group-hover/btn:translate-x-1 transition-transform" size={14} />
+                                            {commonText.actions.viewDetails}
+                                            <FaArrowRight className="transition-transform group-hover/btn:translate-x-1" size={14} />
                                         </Link>
                                     </div>
                                 </div>

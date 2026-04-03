@@ -1,12 +1,14 @@
-import React, { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
-import { FaCubes, FaHistory, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+import React, { useEffect, useState } from 'react';
+import { Link, NavLink, useLocation } from 'react-router-dom';
+import { FaCubes, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+
+import { commonText, navbarText } from '../text';
+import { dashboardSections } from './DashboardSections';
 
 const Navbar: React.FC = () => {
     const location = useLocation();
-    const isDashboard = location.pathname.includes('/dashboard');
+    const isDashboard = location.pathname.startsWith('/dashboard');
 
-    // 1. Tự động lấy thông tin user từ localStorage để hiển thị
     const [currentUser, setCurrentUser] = useState<{ username: string } | null>(null);
 
     useEffect(() => {
@@ -15,14 +17,13 @@ const Navbar: React.FC = () => {
             try {
                 setCurrentUser(JSON.parse(userStr));
             } catch (error) {
-                console.error("Lỗi parse user từ localStorage", error);
+                console.error(error);
             }
         }
     }, []);
 
-    // 2. Hàm đăng xuất
     const logout = () => {
-        if (window.confirm('Bạn có chắc chắn muốn đăng xuất?')) {
+        if (window.confirm(commonText.prompts.confirmLogout)) {
             localStorage.removeItem('token');
             localStorage.removeItem('user');
             window.location.href = '/login';
@@ -30,56 +31,49 @@ const Navbar: React.FC = () => {
     };
 
     return (
-        <nav className="bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 sm:px-10 py-4 flex justify-between items-center sticky top-0 z-40 shadow-sm">
-            
-            {/* TRÁI: Logo (Nhấn vào luôn quay về trang Cửa Hàng /products) */}
-            <Link to="/products" className="flex items-center gap-4 group">
-                <div className="bg-gradient-to-br from-[#6C5CE7] to-[#A29BFE] p-2.5 rounded-xl text-white shadow-lg shadow-[#6C5CE7]/30 group-hover:scale-105 transition-transform duration-300">
+        <nav className="sticky top-0 z-40 flex items-center justify-between border-b border-slate-200 bg-white/80 px-6 py-4 shadow-sm backdrop-blur-md sm:px-10">
+            <Link to="/products" className="group flex items-center gap-4">
+                <div className="rounded-xl bg-gradient-to-br from-[#6C5CE7] to-[#A29BFE] p-2.5 text-white shadow-lg shadow-[#6C5CE7]/30 transition-transform duration-300 group-hover:scale-105">
                     <FaCubes size={22} />
                 </div>
                 <div>
-                    <h1 className="text-xl font-extrabold text-slate-900 tracking-tight group-hover:opacity-80 transition-opacity">
-                        ChainPay <span className="font-light">{isDashboard ? 'Wallet' : 'Store'}</span>
+                    <h1 className="text-xl font-extrabold tracking-tight text-slate-900 transition-opacity group-hover:opacity-80">
+                        {commonText.brand.appName}{' '}
+                        <span className="font-light">{isDashboard ? commonText.brand.wallet : commonText.brand.store}</span>
                     </h1>
                 </div>
             </Link>
 
-            {/* PHẢI: Thông tin User & Các nút thao tác */}
             <div className="flex items-center gap-3 sm:gap-4">
+                {dashboardSections.map(({ to, label, icon: Icon }) => (
+                    <NavLink
+                        key={to}
+                        to={to}
+                        title={label}
+                        aria-label={label}
+                        className={({ isActive }) => `flex h-10 w-10 items-center justify-center rounded-xl border transition-all duration-300 ${isActive ? 'border-transparent bg-[#6C5CE7] text-white shadow-lg shadow-[#6C5CE7]/25' : 'border-slate-200 bg-white text-slate-500 shadow-sm hover:border-[#6C5CE7]/30 hover:text-[#6C5CE7] hover:shadow-md'}`}
+                    >
+                        <Icon size={15} />
+                    </NavLink>
+                ))}
 
-                {/* Nút Lịch sử mua hàng */}
-                <Link 
-                    to="/dashboard" 
-                    className={`flex items-center gap-2 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 shadow-sm hover:shadow-md ${
-                        isDashboard 
-                        ? 'bg-slate-100 text-slate-400 cursor-default shadow-none hover:shadow-none pointer-events-none'
-                        : 'bg-slate-900 hover:bg-[#6C5CE7] text-white hover:shadow-[#6C5CE7]/30'
-                    }`}
-                >
-                    <FaHistory size={16} />
-                    <span className="hidden sm:inline">Lịch Sử Mua Hàng</span>
-                </Link>
-
-                {/* Tên tài khoản đang sử dụng - ĐÃ CHUYỂN THÀNH LINK */}
                 {currentUser && currentUser.username && (
-                    <Link 
-                        to="/profile" 
-                        className="hidden md:flex items-center gap-2 bg-slate-50 hover:bg-slate-100 px-4 py-2.5 rounded-xl border border-slate-200 shadow-sm transition-all duration-300 cursor-pointer"
+                    <Link
+                        to="/profile"
+                        className="hidden cursor-pointer items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-4 py-2.5 shadow-sm transition-all duration-300 hover:bg-slate-100 md:flex"
                     >
                         <FaUserCircle className="text-[#6C5CE7]" size={18} />
-                        <span className="text-sm font-bold text-slate-700">@{currentUser.username}</span>
+                        <span className="text-sm font-bold text-slate-700">{navbarText.profileLabel(currentUser.username)}</span>
                     </Link>
                 )}
 
-                {/* Nút Đăng Xuất */}
-                <button 
-                    onClick={logout} 
-                    className="flex items-center gap-2 bg-white hover:bg-red-50 text-slate-600 hover:text-red-500 px-5 py-2.5 rounded-xl font-bold text-sm transition-all duration-300 border border-slate-200 shadow-sm"
+                <button
+                    onClick={logout}
+                    className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-5 py-2.5 text-sm font-bold text-slate-600 shadow-sm transition-all duration-300 hover:bg-red-50 hover:text-red-500"
                 >
-                    <FaSignOutAlt size={16} /> 
-                    <span className="hidden lg:inline">Đăng Xuất</span>
+                    <FaSignOutAlt size={16} />
+                    <span className="hidden lg:inline">{commonText.actions.logout}</span>
                 </button>
-
             </div>
         </nav>
     );

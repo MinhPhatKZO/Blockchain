@@ -1,48 +1,45 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes } from 'react-router-dom';
 import 'bootstrap/dist/css/bootstrap.min.css';
 
-// Import các trang public
-import Login from './components/Login';
-import Register from './components/Register';
+import AdminDashboard from './components/AdminDashboard';
+import AdminRoute from './components/AdminRoute';
 import Dashboard from './components/Dashboard';
-import Products from './components/Products';
+import DashboardHistory from './components/DashboardHistory';
+import DashboardTransfer from './components/DashboardTransfer';
+import DashboardWallet from './components/DashboardWallet';
+import Login from './components/Login';
 import ProductDetail from './components/ProductDetail';
+import Products from './components/Products';
 import Profile from './components/Profile';
-
-// --- IMPORT THÊM CÁC COMPONENT ADMIN ---
-// (Đảm bảo bạn đã tạo 2 file này trong thư mục components nhé)
-import AdminRoute from './components/AdminRoute'; 
-import AdminDashboard from './components/AdminDashboard'; 
+import Register from './components/Register';
 
 const App: React.FC = () => {
-  return (
-    <Router>
-      <Routes>
-        {/* --- KHU VỰC PUBLIC (Ai cũng vào được) --- */}
-        <Route path="/login" element={<Login />} />
-        <Route path="/register" element={<Register />} />
-        
-        {/* Khu vực User bình thường */}
-        <Route path="/products" element={<Products />} />
-        <Route path="/products/:id" element={<ProductDetail />} />
-        <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/profile" element={<Profile />} />
-        {/* --- KHU VỰC BẢO VỆ DÀNH RIÊNG CHO ADMIN --- */}
-        {/* Bất cứ Route nào nằm gọn trong thẻ <AdminRoute> đều sẽ bị kiểm tra Token */}
-        <Route element={<AdminRoute />}>
-          <Route path="/admin" element={<AdminDashboard />} />
-          {/* Sau này bạn có thể thêm các trang quản lý khác ở đây */}
-          {/* <Route path="/admin/users" element={<ManageUsers />} /> */}
-        </Route>
+    return (
+        <Router>
+            <Routes>
+                <Route path="/login" element={<Login />} />
+                <Route path="/register" element={<Register />} />
 
-        {/* Chuyển hướng mặc định khi gõ sai link */}
-        <Route path="/" element={<Navigate to="/login" replace />} />
-        {/* Bắt lỗi 404 cho các link không tồn tại */}
-        <Route path="*" element={<Navigate to="/login" replace />} />
-      </Routes>
-    </Router>
-  );
-}
+                <Route path="/products" element={<Products />} />
+                <Route path="/products/:id" element={<ProductDetail />} />
+                <Route path="/dashboard" element={<Dashboard />}>
+                    <Route index element={<Navigate to="history" replace />} />
+                    <Route path="wallet" element={<DashboardWallet />} />
+                    <Route path="transfer" element={<DashboardTransfer />} />
+                    <Route path="history" element={<DashboardHistory />} />
+                </Route>
+                <Route path="/profile" element={<Profile />} />
+
+                <Route element={<AdminRoute />}>
+                    <Route path="/admin" element={<AdminDashboard />} />
+                </Route>
+
+                <Route path="/" element={<Navigate to="/login" replace />} />
+                <Route path="*" element={<Navigate to="/login" replace />} />
+            </Routes>
+        </Router>
+    );
+};
 
 export default App;
