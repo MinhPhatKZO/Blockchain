@@ -30,6 +30,9 @@ public class PaymentService {
     @Autowired
     private ChainPayContractService contractService;
 
+    @Autowired
+    private BlockchainService blockchainService;
+
     @Value("${blockchain.private-key}")
     private String adminPrivateKey;
 
@@ -67,6 +70,10 @@ public class PaymentService {
 
     public BigInteger getBalance(String address) throws Exception {
         return contractService.getBalance(address);
+    }
+
+    public BigInteger getWalletBalance(String address) throws Exception {
+        return blockchainService.getWalletBalance(address);
     }
 
     public Transaction recordExternalPayment(

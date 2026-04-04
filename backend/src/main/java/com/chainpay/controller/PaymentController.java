@@ -114,6 +114,16 @@ public class PaymentController {
         }
     }
 
+    @GetMapping("/wallet-balance/{address}")
+    public ResponseEntity<?> getWalletBalance(@PathVariable String address) {
+        try {
+            BigInteger balanceWei = paymentService.getWalletBalance(address);
+            return ResponseEntity.ok(balanceWei.toString());
+        } catch (Exception e) {
+            return ResponseEntity.badRequest().body("Loi lay so du vi: " + e.getMessage());
+        }
+    }
+
     @PostMapping("/admin/deposit")
     public ResponseEntity<?> adminDeposit(@RequestParam String amountWei) {
         try {

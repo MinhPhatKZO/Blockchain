@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from 'react';
 import { FaCheckCircle, FaCopy, FaEthereum, FaInfoCircle, FaWallet } from 'react-icons/fa';
+import Web3 from 'web3';
 
+import { axiosClient } from '../api';
 import { commonText, profileText } from '../text';
 import Navbar from '../components/Navbar';
 
@@ -11,20 +13,110 @@ interface UserData {
     walletAddress?: string;
 }
 
+interface EthereumProvider {
+    request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
+}
+
+const formatNumberString = (value: string) => value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+const formatWei = (value: string | null) => {
+    if (!value) {
+        return commonText.labels.notAvailable;
+    }
+
+    return /^\d+$/.test(value) ? formatNumberString(value) : value;
+};
+
+const formatEth = (value: string | null) => {
+    if (!value) {
+        return commonText.labels.notAvailable;
+    }
+
+    try {
+        const etherValue = Web3.utils.fromWei(value, 'ether');
+        const [wholePart, fractionPart = ''] = etherValue.split('.');
+        const trimmedFraction = fractionPart.slice(0, 6).replace(/0+$/, '');
+        const formattedWholePart = formatNumberString(wholePart);
+        return trimmedFraction ? `${formattedWholePart}.${trimmedFraction}` : formattedWholePart;
+    } catch (error) {
+        console.error(error);
+        return commonText.labels.notAvailable;
+    }
+};
+
+const getBrowserWalletBalance = async (address: string) => {
+    const ethereum = (window as Window & { ethereum?: EthereumProvider }).ethereum;
+    if (!ethereum) {
+        throw new Error('Trinh duyet chua co vi Web3');
+    }
+
+    const balanceHex = await ethereum.request({
+        method: 'eth_getBalance',
+        params: [address, 'latest']
+    });
+
+    if (typeof balanceHex !== 'string') {
+        throw new Error('Khong doc duoc so du tu vi');
+    }
+
+    return Web3.utils.hexToNumberString(balanceHex);
+};
+
 const ProfilePage: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
-    const [balance] = useState('0');
+    const [walletBalanceWei, setWalletBalanceWei] = useState<string | null>(null);
+    const [loading, setLoading] = useState(true);
+    const [balanceError, setBalanceError] = useState('');
     const [copied, setCopied] = useState(false);
 
     useEffect(() => {
-        const userStr = localStorage.getItem('user');
-        if (userStr) {
+        const loadProfile = async () => {
             try {
-                setCurrentUser(JSON.parse(userStr));
+                setLoading(true);
+                setBalanceError('');
+
+                const userResponse = await axiosClient.get<UserData>('/users/me');
+                const user = userResponse.data;
+
+                setCurrentUser(user);
+                localStorage.setItem('user', JSON.stringify(user));
+
+                if (!user.walletAddress) {
+                    setWalletBalanceWei(null);
+                    return;
+                }
+
+                try {
+                    const walletBalanceResponse = await axiosClient.get<string>(`/payment/wallet-balance/${user.walletAddress}`);
+                    setWalletBalanceWei(String(walletBalanceResponse.data ?? '0'));
+                } catch (walletApiError) {
+                    console.error(walletApiError);
+
+                    try {
+                        const fallbackWalletBalance = await getBrowserWalletBalance(user.walletAddress);
+                        setWalletBalanceWei(fallbackWalletBalance);
+                    } catch (fallbackError) {
+                        console.error(fallbackError);
+                        setWalletBalanceWei(null);
+                        setBalanceError(profileText.page.balanceUnavailable);
+                    }
+                }
             } catch (error) {
                 console.error(error);
+                const userStr = localStorage.getItem('user');
+                if (userStr) {
+                    try {
+                        setCurrentUser(JSON.parse(userStr));
+                    } catch (parseError) {
+                        console.error(parseError);
+                    }
+                }
+            } finally {
+                setLoading(false);
             }
-        }
+        };
+
+        void loadProfile();
     }, []);
 
     const copyToClipboard = (text: string) => {
@@ -38,7 +130,13 @@ const ProfilePage: React.FC = () => {
             <Navbar />
 
             <main className="mx-auto max-w-3xl px-4 pt-10 sm:px-6">
-                {currentUser ? (
+                {loading ? (
+                    <div className="flex min-h-[400px] flex-col items-center justify-center rounded-[32px] border border-slate-200 bg-white p-12 text-center shadow-sm">
+                        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[#6C5CE7]/20 border-t-[#6C5CE7]"></div>
+                        <h3 className="text-lg font-bold text-slate-700">{profileText.page.loadingTitle}</h3>
+                        <p className="mt-1 text-sm text-slate-500">{profileText.page.loadingDescription}</p>
+                    </div>
+                ) : currentUser ? (
                     <div className="flex flex-col gap-8">
                         <div className="relative overflow-hidden rounded-[32px] border border-slate-200 bg-white shadow-sm">
                             <div className="h-32 bg-gradient-to-r from-[#6C5CE7] via-[#8e7bfa] to-[#a29bfe] sm:h-40"></div>
@@ -67,6 +165,12 @@ const ProfilePage: React.FC = () => {
                                 </div>
                             </div>
                         </div>
+
+                        {balanceError && (
+                            <div className="flex items-center gap-2 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm font-medium text-amber-700">
+                                <FaInfoCircle /> {balanceError}
+                            </div>
+                        )}
 
                         <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
                             <div className="rounded-[32px] border border-slate-200 bg-white p-6 shadow-sm transition-shadow hover:shadow-md sm:p-8">
@@ -110,25 +214,35 @@ const ProfilePage: React.FC = () => {
                                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-emerald-400 backdrop-blur-sm">
                                             <FaEthereum size={20} />
                                         </div>
-                                        <h2 className="text-lg font-bold text-slate-200">{profileText.page.contractBalanceTitle}</h2>
+                                        <h2 className="text-lg font-bold text-slate-200">{profileText.page.accountBalanceTitle}</h2>
                                     </div>
 
-                                    <div>
-                                        <p className="mb-1 text-sm font-medium uppercase tracking-wider text-slate-400">{profileText.page.availableLabel}</p>
-                                        <div className="flex items-baseline gap-2">
-                                            <span className="text-4xl font-black tracking-tight text-white sm:text-5xl">{balance}</span>
-                                            <span className="text-lg font-bold text-slate-400">{commonText.labels.wei}</span>
+                                    {currentUser.walletAddress ? (
+                                        <div>
+                                            <div className="flex items-baseline gap-2">
+                                                <span className="text-4xl font-black tracking-tight text-white sm:text-5xl">{formatEth(walletBalanceWei)}</span>
+                                                <span className="text-lg font-bold text-slate-400">{commonText.labels.eth}</span>
+                                            </div>
+                                            <p className="mt-2 font-mono text-xs text-slate-400">
+                                                {profileText.page.availableLabel}: {formatWei(walletBalanceWei)} {commonText.labels.wei}
+                                            </p>
                                         </div>
-                                    </div>
+                                    ) : (
+                                        <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-medium text-slate-300">
+                                            {profileText.page.balanceHintNoWallet}
+                                        </div>
+                                    )}
                                 </div>
                             </div>
                         </div>
                     </div>
                 ) : (
                     <div className="flex min-h-[400px] flex-col items-center justify-center rounded-[32px] border border-slate-200 bg-white p-12 text-center shadow-sm">
-                        <div className="mb-4 h-12 w-12 animate-spin rounded-full border-4 border-[#6C5CE7]/20 border-t-[#6C5CE7]"></div>
-                        <h3 className="text-lg font-bold text-slate-700">{profileText.page.loadingTitle}</h3>
-                        <p className="mt-1 text-sm text-slate-500">{profileText.page.loadingDescription}</p>
+                        <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-50 text-red-500">
+                            <FaInfoCircle />
+                        </div>
+                        <h3 className="text-lg font-bold text-slate-700">{profileText.page.profileUnavailableTitle}</h3>
+                        <p className="mt-1 text-sm text-slate-500">{profileText.page.profileUnavailableDescription}</p>
                     </div>
                 )}
             </main>

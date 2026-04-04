@@ -6,8 +6,12 @@ export const profileText = {
         walletAddressLabel: 'Địa chỉ MetaMask',
         copyWalletTitle: 'Sao chép địa chỉ ví',
         noLinkedWallet: 'Bạn chưa liên kết ví Web3.',
-        contractBalanceTitle: 'Số Dư Contract',
-        availableLabel: 'Khả dụng',
+        accountBalanceTitle: 'Số Dư Tài Khoản',
+        availableLabel: 'Hiện có',
+        balanceUnavailable: 'Không thể tải số dư tài khoản lúc này.',
+        balanceHintNoWallet: 'Liên kết ví để xem số dư tài khoản.',
+        profileUnavailableTitle: 'Không tải được hồ sơ',
+        profileUnavailableDescription: 'Vui lòng đăng nhập lại hoặc tải mới trang.',
         loadingTitle: 'Đang tải hồ sơ...',
         loadingDescription: 'Vui lòng đợi một chút nhé'
     }

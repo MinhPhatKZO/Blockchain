@@ -43,7 +43,13 @@ const Login: React.FC = () => {
             if (response.data.user) {
                 localStorage.setItem('user', JSON.stringify(response.data.user));
             } else {
-                localStorage.setItem('user', JSON.stringify({ username }));
+                try {
+                    const userResponse = await axiosClient.get('/users/me');
+                    localStorage.setItem('user', JSON.stringify(userResponse.data));
+                } catch (userError) {
+                    console.error(userError);
+                    localStorage.setItem('user', JSON.stringify({ username }));
+                }
             }
 
             if (decoded.role === 'ROLE_ADMIN') {

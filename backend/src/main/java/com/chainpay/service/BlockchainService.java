@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.web3j.crypto.Credentials;
 import org.web3j.crypto.Keys;
 import org.web3j.protocol.Web3j;
+import org.web3j.protocol.core.DefaultBlockParameterName;
 import org.web3j.protocol.http.HttpService;
 import org.web3j.utils.Convert;
 
@@ -40,6 +41,16 @@ public class BlockchainService {
     
     public String getContractAddress() {
         return contractAddress;
+    }
+
+    public BigInteger getWalletBalance(String address) throws Exception {
+        if (!isValidAddress(address)) {
+            throw new IllegalArgumentException("Dia chi vi khong hop le");
+        }
+
+        return web3j.ethGetBalance(address, DefaultBlockParameterName.LATEST)
+                .send()
+                .getBalance();
     }
 
     public String getChainId() {
