@@ -36,9 +36,55 @@ const Dashboard: React.FC = () => {
     
     const [balance, setBalance] = useState<string>('Đang tải...');
     const [copied, setCopied] = useState(false);
+    
+    // Thêm state lưu ví MetaMask đang kết nối thực tế
+    const [activeMetaMaskAccount, setActiveMetaMaskAccount] = useState<string>('');
+
+    // Hàm chuyên dụng để lấy số dư On-chain
+    const fetchBalanceOnChain = async (address: string) => {
+        try {
+            const ethereum = (window as any).ethereum;
+            if (ethereum) {
+                const web3 = new Web3(ethereum);
+                const weiBalance = await web3.eth.getBalance(address);
+                setBalance(weiBalance.toString());
+            }
+        } catch (error) {
+            console.error("Lỗi lấy số dư từ mạng lưới:", error);
+            setBalance('0');
+        }
+    };
 
     useEffect(() => {
         fetchDashboardData();
+
+        // LẮNG NGHE SỰ KIỆN METAMASK (Chuẩn Web3)
+        const ethereum = (window as any).ethereum;
+        if (ethereum) {
+            // 1. Lấy ví đang kết nối lúc mới vào trang
+            ethereum.request({ method: 'eth_accounts' }).then((accounts: string[]) => {
+                if (accounts.length > 0) {
+                    setActiveMetaMaskAccount(accounts[0]);
+                    fetchBalanceOnChain(accounts[0]); // Ưu tiên lấy số dư ví đang cắm vào web
+                }
+            });
+
+            // 2. Tự động đổi số dư khi user đổi tài khoản trên MetaMask
+            ethereum.on('accountsChanged', (accounts: string[]) => {
+                if (accounts.length > 0) {
+                    setActiveMetaMaskAccount(accounts[0]);
+                    fetchBalanceOnChain(accounts[0]);
+                } else {
+                    setActiveMetaMaskAccount('');
+                    setBalance('0');
+                }
+            });
+
+            // 3. Reload web khi user đổi mạng (ví dụ: từ Mainnet sang Ganache)
+            ethereum.on('chainChanged', () => {
+                window.location.reload();
+            });
+        }
     }, []);
 
     const fetchDashboardData = async () => {
@@ -50,17 +96,12 @@ const Dashboard: React.FC = () => {
             const historyRes = await axiosClient.get<TransactionHistory[]>('/users/history');
             setHistory(historyRes.data);
 
-            if (userRes.data.walletAddress) {
-                try {
-                    const balRes = await axiosClient.get(`/payment/balance/${userRes.data.walletAddress}`);
-                    setBalance(balRes.data.toString());
-                } catch (err) {
-                    console.error("Lấy số dư thất bại", err);
-                    setBalance('0');
-                }
+            // Chỉ lấy số dư ví DB nếu MetaMask chưa kết nối
+            if (!activeMetaMaskAccount && userRes.data.walletAddress) {
+                fetchBalanceOnChain(userRes.data.walletAddress);
             }
         } catch (error) {
-            console.error("Lỗi tải dữ liệu Dashboard:", error);
+            console.error("Lỗi tải dữ liệu DB:", error);
         }
     };
 
@@ -113,6 +154,7 @@ const Dashboard: React.FC = () => {
             setAmount('');
             setToAddress('');
             fetchDashboardData(); 
+            fetchBalanceOnChain(activeAccount); // Cập nhật lại số dư sau khi chuyển
 
         } catch (error: any) {
             console.error("Lỗi MetaMask:", error);
@@ -135,6 +177,16 @@ const Dashboard: React.FC = () => {
             window.location.href = '/login';
         }
     }
+
+    const formatBalanceToETH = (weiValue: string) => {
+        if (weiValue === 'Đang tải...') return weiValue;
+        if (weiValue === '0' || !weiValue) return '0.0000';
+        try {
+            return parseFloat(Web3.utils.fromWei(weiValue, 'ether')).toFixed(4);
+        } catch (error) {
+            return '0.0000';
+        }
+    };
 
     return (
         <div className="min-h-screen bg-[#f8fafc] font-sans pb-20 relative text-slate-800">
@@ -164,7 +216,6 @@ const Dashboard: React.FC = () => {
                     {/* --- CỘT TRÁI (THÔNG TIN & KẾT NỐI VÍ) --- */}
                     <div className="lg:col-span-4 flex flex-col gap-6">
                         
-                        {/* Box Kết nối ví (Gradient Tím) */}
                         <div className="bg-gradient-to-br from-[#6C5CE7] to-[#A29BFE] rounded-[32px] shadow-xl shadow-[#6C5CE7]/20 p-6 text-white relative overflow-hidden">
                             <div className="absolute -right-10 -bottom-10 opacity-10">
                                 <FaWallet size={150} />
@@ -180,7 +231,6 @@ const Dashboard: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Box Hồ sơ của tôi */}
                         <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 p-6">
                             <h6 className="font-black text-slate-900 text-sm flex items-center gap-2 mb-6 uppercase tracking-wider">
                                 <FaInfoCircle className="text-[#6C5CE7]" /> Hồ Sơ Của Tôi
@@ -188,7 +238,6 @@ const Dashboard: React.FC = () => {
                             
                             {currentUser ? (
                                 <div className="flex flex-col gap-6">
-                                    {/* Avatar & Tên */}
                                     <div className="flex items-center gap-4">
                                         <div className="w-14 h-14 bg-[#6C5CE7]/10 text-[#6C5CE7] rounded-full flex items-center justify-center font-black text-2xl shadow-inner">
                                             {currentUser.fullName ? currentUser.fullName.charAt(0) : 'U'}
@@ -201,25 +250,32 @@ const Dashboard: React.FC = () => {
                                         </div>
                                     </div>
 
-                                    {/* Địa chỉ Ví */}
                                     <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100 group">
                                         <div className="flex justify-between items-center mb-1">
-                                            <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest">Địa chỉ Ví Liên Kết</small>
+                                            <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest">Địa chỉ Ví Đăng ký</small>
                                             <button onClick={() => copyToClipboard(currentUser.walletAddress)} className="text-slate-400 hover:text-[#6C5CE7] transition-colors" title="Copy địa chỉ ví">
                                                 {copied ? <FaCheckCircle className="text-emerald-500" /> : <FaCopy />}
                                             </button>
                                         </div>
-                                        <div className="font-mono text-xs text-slate-600 truncate bg-white p-2 rounded-lg border border-slate-200">
+                                        <div className="font-mono text-xs text-slate-600 truncate bg-white p-2 rounded-lg border border-slate-200" title={currentUser.walletAddress}>
                                             {currentUser.walletAddress}
                                         </div>
                                     </div>
 
-                                    {/* Số dư hiện tại */}
+                                    {/* Số dư hiện tại (Tính theo ETH) */}
                                     <div className="bg-[#6C5CE7]/5 p-5 rounded-2xl border border-[#6C5CE7]/20">
-                                        <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest mb-1 block">Số dư khả dụng (Contract)</small>
+                                        <div className="flex justify-between items-start mb-1">
+                                            <small className="text-[#6C5CE7] font-bold text-[10px] uppercase tracking-widest block">Số dư Ví Hiện Tại</small>
+                                        </div>
                                         <div className="flex items-baseline gap-2">
-                                            <span className="font-black text-3xl text-slate-900">{balance}</span>
-                                            <span className="font-bold text-slate-400 text-xs">WEI</span>
+                                            <span className="font-black text-3xl text-slate-900 truncate max-w-[200px]" title={balance + " WEI"}>
+                                                {formatBalanceToETH(balance)}
+                                            </span>
+                                            <span className="font-bold text-slate-400 text-xs">ETH</span>
+                                        </div>
+                                        {/* Hiển thị địa chỉ ví đang active để user đỡ nhầm lẫn */}
+                                        <div className="text-[9px] font-mono text-slate-400 mt-2 truncate">
+                                            Live: {activeMetaMaskAccount || "Chưa kết nối"}
                                         </div>
                                     </div>
                                 </div>
@@ -234,8 +290,6 @@ const Dashboard: React.FC = () => {
 
                     {/* --- CỘT PHẢI (CHUYỂN TIỀN & LỊCH SỬ) --- */}
                     <div className="lg:col-span-8 flex flex-col gap-8">
-                        
-                        {/* Form Chuyển Tiền */}
                         <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
                             <div className="p-6 sm:p-8 border-b border-slate-100 flex items-center gap-3">
                                 <div className="p-2.5 bg-[#6C5CE7]/10 text-[#6C5CE7] rounded-xl">
@@ -256,7 +310,7 @@ const Dashboard: React.FC = () => {
                                     
                                     <div>
                                         <label className="text-[11px] font-black text-slate-500 uppercase tracking-wider ml-1 mb-1.5 block">Số tiền (Wei)</label>
-                                        <input type="number" className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7] transition-all text-slate-800 shadow-sm" placeholder="Nhập số lượng WEI..." value={amount} onChange={e => setAmount(e.target.value)} required />
+                                        <input type="number" className="w-full px-4 py-3.5 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold outline-none focus:ring-2 focus:ring-[#6C5CE7]/30 focus:border-[#6C5CE7] transition-all text-slate-800 shadow-sm" placeholder="Nhập số lượng WEI (Ví dụ: 1000000000000000000 cho 1 ETH)" value={amount} onChange={e => setAmount(e.target.value)} required />
                                     </div>
                                     
                                     <button type="submit" className="w-full py-4 bg-gradient-to-r from-[#6C5CE7] to-[#A29BFE] text-white font-bold rounded-xl shadow-lg shadow-[#6C5CE7]/30 hover:shadow-[#6C5CE7]/50 hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2" disabled={loading}>
@@ -264,7 +318,6 @@ const Dashboard: React.FC = () => {
                                     </button>
                                 </form>
 
-                                {/* Kết quả Giao dịch */}
                                 {result && (
                                     <div className={`mt-6 p-4 rounded-xl border ${result.status === 'SUCCESS' ? 'bg-emerald-50 border-emerald-200 text-emerald-800' : 'bg-red-50 border-red-200 text-red-800'}`}>
                                         <h6 className="font-bold mb-1 flex items-center gap-2">
@@ -282,7 +335,6 @@ const Dashboard: React.FC = () => {
                             </div>
                         </div>
 
-                        {/* Bảng Lịch sử giao dịch */}
                         <div className="bg-white rounded-[32px] shadow-sm border border-slate-200 overflow-hidden">
                             <div className="p-6 sm:p-8 border-b border-slate-100 flex justify-between items-center bg-slate-50/50">
                                 <div className="flex items-center gap-3">
@@ -346,7 +398,7 @@ const Dashboard: React.FC = () => {
                 </div>
             </main>
 
-            {/* --- MODAL CHI TIẾT GIAO DỊCH (Tailwind) --- */}
+            {/* --- MODAL CHI TIẾT GIAO DỊCH --- */}
             {selectedTx && (
                 <div className="fixed inset-0 z-[100] flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-in fade-in duration-200" onClick={() => setSelectedTx(null)}>
                     <div className="bg-white rounded-[32px] shadow-2xl w-full max-w-md overflow-hidden transform transition-all" onClick={e => e.stopPropagation()}>
