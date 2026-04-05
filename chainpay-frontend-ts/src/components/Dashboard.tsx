@@ -4,7 +4,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { axiosClient, fetchPublicConfig } from '../api';
 import { dashboardText } from '../text';
 import { dashboardSections } from './DashboardSections';
-import type { DashboardOutletContext, TransactionHistory, User } from './DashboardTypes';
+import type { DashboardOutletContext, PurchaseLocationState, TransactionHistory, User } from './DashboardTypes';
 import Navbar from './Navbar';
 import NotificationListener from './NotificationListener';
 
@@ -44,6 +44,14 @@ const Dashboard: React.FC = () => {
         return dashboardSections.find((section) => location.pathname.startsWith(section.to)) ?? dashboardSections[2];
     }, [location.pathname]);
 
+    const purchaseState = (location.state ?? {}) as PurchaseLocationState;
+    const isPurchaseFlow = location.pathname.startsWith('/dashboard/transfer') && !!purchaseState.productName;
+
+    const heroTitle = isPurchaseFlow ? dashboardText.transfer.paymentTitle : activeSection.title;
+    const heroDescription = isPurchaseFlow
+        ? dashboardText.transfer.paymentDescription
+        : activeSection.description;
+
     const outletContext: DashboardOutletContext = {
         currentUser,
         history,
@@ -66,10 +74,10 @@ const Dashboard: React.FC = () => {
                             {dashboardText.page.badge}
                         </div>
                         <h2 className="mt-4 text-3xl font-black tracking-tight text-slate-900 sm:text-4xl">
-                            {activeSection.title}
+                            {heroTitle}
                         </h2>
                         <p className="mt-3 text-sm font-medium leading-7 text-slate-500 sm:text-base">
-                            {activeSection.description}
+                            {heroDescription}
                         </p>
                     </div>
                 </section>
