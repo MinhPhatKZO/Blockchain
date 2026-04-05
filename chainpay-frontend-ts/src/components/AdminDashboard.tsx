@@ -49,6 +49,24 @@ const weiToEthNumber = (weiValue: string, fractionDigits = 6) => {
     return Number(`${whole || '0'}${trimmedFraction ? `.${trimmedFraction}` : ''}`);
 };
 
+const formatWeiString = (value: unknown) => normalizeWeiAmount(value).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+
+const formatEthFromWei = (value: unknown) => {
+    const ethValue = weiToEthNumber(normalizeWeiAmount(value));
+    return `${new Intl.NumberFormat('vi-VN', {
+        minimumFractionDigits: 0,
+        maximumFractionDigits: ethValue > 0 && ethValue < 1 ? 6 : 4
+    }).format(ethValue)} ETH`;
+};
+
+const formatAddress = (value: string) => {
+    if (!value) {
+        return commonText.labels.notAvailable;
+    }
+
+    return value.length <= 16 ? value : `${value.slice(0, 10)}...${value.slice(-8)}`;
+};
+
 const AdminDashboard: React.FC = () => {
     const navigate = useNavigate();
     const [activeTab, setActiveTab] = useState<'users' | 'products' | 'transactions'>('users');
@@ -63,6 +81,7 @@ const AdminDashboard: React.FC = () => {
     const [txPage, setTxPage] = useState(1);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingProduct, setEditingProduct] = useState<any>(null);
+    const [selectedUser, setSelectedUser] = useState<any | null>(null);
     const [productForm, setProductForm] = useState({
         name: '',
         priceEth: '',
@@ -168,6 +187,26 @@ const AdminDashboard: React.FC = () => {
         return user ? user.fullName : `${address.substring(0, 6)}...`;
     };
 
+    const selectedUserTransactions = useMemo(() => {
+        if (!selectedUser?.walletAddress) {
+            return [];
+        }
+
+        const walletAddress = String(selectedUser.walletAddress).toLowerCase();
+
+        return transactions
+            .filter((transaction) => {
+                const fromAddress = String(transaction.fromAddress ?? '').toLowerCase();
+                const toAddress = String(transaction.toAddress ?? '').toLowerCase();
+                return fromAddress === walletAddress || toAddress === walletAddress;
+            })
+            .sort((left, right) => {
+                const leftTime = new Date(left.createdAt || left.timestamp || 0).getTime();
+                const rightTime = new Date(right.createdAt || right.timestamp || 0).getTime();
+                return rightTime - leftTime;
+            });
+    }, [selectedUser, transactions]);
+
     const chartData = useMemo(() => {
         const dailyTotals = new Map<string, { amountWei: string; time: string; sortValue: number }>();
 
@@ -256,6 +295,7 @@ const AdminDashboard: React.FC = () => {
                             setUserPage={setUserPage}
                             onDelete={() => {}}
                             onAdd={() => {}}
+                            onSelectUser={setSelectedUser}
                             chartData={chartData}
                         />
                     )}
@@ -343,6 +383,113 @@ const AdminDashboard: React.FC = () => {
                             <button onClick={handleSaveProduct} className="flex-1 rounded-2xl bg-[#6C5CE7] py-4 font-bold text-white shadow-lg shadow-purple-200 transition-all hover:bg-[#5A4AD1] active:scale-95">
                                 {commonText.actions.save}
                             </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {selectedUser && (
+                <div className="fixed inset-0 z-[105] flex items-center justify-center p-4">
+                    <div className="absolute inset-0 bg-slate-950/50 backdrop-blur-sm" onClick={() => setSelectedUser(null)} />
+
+                    <div className="relative flex max-h-[88vh] w-full max-w-5xl flex-col overflow-hidden rounded-[36px] border border-white/60 bg-white shadow-2xl shadow-slate-900/20 animate-in fade-in zoom-in-95">
+                        <div className="absolute inset-x-0 top-0 h-40 bg-gradient-to-br from-[#ede9ff] via-white to-[#f8fafc]" />
+
+                        <div className="relative border-b border-slate-100 px-6 pb-6 pt-8 sm:px-8">
+                            <button onClick={() => setSelectedUser(null)} className="absolute right-6 top-6 text-slate-300 transition-colors hover:text-slate-600">
+                                <FaTimes size={20} />
+                            </button>
+
+                            <div className="flex flex-col gap-6 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="flex items-center gap-4">
+                                    <div className="flex h-16 w-16 items-center justify-center rounded-full bg-purple-100 text-2xl font-black text-[#6C5CE7] shadow-inner">
+                                        {selectedUser.fullName?.charAt(0) ?? selectedUser.username?.charAt(0) ?? 'U'}
+                                    </div>
+                                    <div>
+                                        <div className="text-xs font-black uppercase tracking-[0.3em] text-[#6C5CE7]">{adminText.userManagement.modalTitle}</div>
+                                        <h2 className="mt-2 text-2xl font-black text-slate-900 sm:text-3xl">{selectedUser.fullName}</h2>
+                                        <p className="mt-1 font-medium text-slate-500">@{selectedUser.username}</p>
+                                        <p className="mt-3 max-w-xl text-sm font-medium leading-6 text-slate-500">{adminText.userManagement.modalSubtitle}</p>
+                                    </div>
+                                </div>
+
+                                <div className="grid gap-3 sm:grid-cols-2">
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{adminText.userManagement.walletLabel}</div>
+                                        <div className="mt-2 max-w-[260px] break-all font-mono text-xs text-slate-600">
+                                            {selectedUser.walletAddress || adminText.userManagement.noWallet}
+                                        </div>
+                                    </div>
+                                    <div className="rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3">
+                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{adminText.userManagement.totalTransactionsLabel}</div>
+                                        <div className="mt-2 text-2xl font-black text-slate-900">{selectedUserTransactions.length}</div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="relative flex-1 overflow-y-auto px-6 py-6 sm:px-8">
+                            {!selectedUser.walletAddress ? (
+                                <div className="rounded-[28px] border border-amber-200 bg-amber-50 px-5 py-4 text-sm font-medium text-amber-700">
+                                    {adminText.userManagement.noWallet}
+                                </div>
+                            ) : selectedUserTransactions.length === 0 ? (
+                                <div className="rounded-[28px] border border-slate-200 bg-slate-50 px-5 py-12 text-center text-sm font-medium text-slate-500">
+                                    {adminText.userManagement.empty}
+                                </div>
+                            ) : (
+                                <div className="space-y-4">
+                                    {selectedUserTransactions.map((transaction) => {
+                                        const isOutgoing = String(transaction.fromAddress ?? '').toLowerCase() === String(selectedUser.walletAddress).toLowerCase();
+                                        return (
+                                            <div key={transaction.id} className="rounded-[28px] border border-slate-200 bg-white p-5 shadow-sm">
+                                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                                    <div>
+                                                        <div className={`inline-flex items-center rounded-full px-3 py-1 text-xs font-black uppercase tracking-[0.2em] ${isOutgoing ? 'bg-amber-100 text-amber-700' : 'bg-emerald-100 text-emerald-700'}`}>
+                                                            {isOutgoing ? adminText.userManagement.sentBadge : adminText.userManagement.receivedBadge}
+                                                        </div>
+                                                        <div className="mt-4 space-y-2 text-sm font-medium text-slate-600">
+                                                            <p><span className="font-black text-slate-900">{adminText.transactionLedger.from}:</span> {formatAddress(transaction.fromAddress)}</p>
+                                                            <p><span className="font-black text-slate-900">{adminText.transactionLedger.to}:</span> {formatAddress(transaction.toAddress)}</p>
+                                                            {transaction.product?.name && (
+                                                                <p><span className="font-black text-slate-900">{adminText.userManagement.productLabel}:</span> {transaction.product.name}</p>
+                                                            )}
+                                                            <p className="text-xs text-slate-400">{new Date(transaction.createdAt || transaction.timestamp).toLocaleString('vi-VN')}</p>
+                                                        </div>
+                                                    </div>
+
+                                                    <div className="min-w-[180px] rounded-2xl bg-slate-50 px-4 py-3 text-left lg:text-right">
+                                                        <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{adminText.userManagement.amountLabel}</div>
+                                                        <div className="mt-2 text-xl font-black text-[#6C5CE7]">{formatEthFromWei(transaction.amount)}</div>
+                                                        <div className="mt-1 font-mono text-[11px] text-slate-400">{formatWeiString(transaction.amount)} WEI</div>
+                                                        <div className={`mt-3 inline-flex rounded-full px-2.5 py-1 text-[10px] font-black uppercase tracking-[0.15em] ${transaction.status === 'SUCCESS' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'}`}>
+                                                            {transaction.status || commonText.labels.notAvailable}
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                <div className="mt-4 rounded-2xl border border-slate-100 bg-slate-50 px-4 py-3">
+                                                    <div className="text-[10px] font-black uppercase tracking-[0.25em] text-slate-400">{adminText.userManagement.hashLabel}</div>
+                                                    <div className="mt-2 break-all font-mono text-xs text-slate-500">
+                                                        {transaction.transactionHash || commonText.labels.notAvailable}
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="border-t border-slate-100 bg-slate-50 px-6 py-4 sm:px-8">
+                            <div className="flex justify-end">
+                                <button
+                                    onClick={() => setSelectedUser(null)}
+                                    className="rounded-2xl bg-[#6C5CE7] px-6 py-3 text-sm font-black text-white shadow-lg shadow-purple-200 transition-all hover:bg-[#5A4AD1]"
+                                >
+                                    {adminText.userManagement.close}
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>

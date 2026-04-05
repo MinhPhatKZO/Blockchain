@@ -16,6 +16,7 @@ interface Props {
     setUserPage: (page: number) => void;
     onDelete: (id: number, name: string) => void;
     onAdd: () => void;
+    onSelectUser: (user: any) => void;
     chartData: ChartPoint[];
 }
 
@@ -24,7 +25,7 @@ const formatEthValue = (value: number) => new Intl.NumberFormat('vi-VN', {
     maximumFractionDigits: value > 0 && value < 1 ? 4 : 2
 }).format(value);
 
-const UserManagement: React.FC<Props> = ({ users, searchTerm, userPage, setUserPage, onDelete, onAdd, chartData }) => {
+const UserManagement: React.FC<Props> = ({ users, searchTerm, userPage, setUserPage, onDelete, onAdd, onSelectUser, chartData }) => {
     const itemsPerPage = 6;
     const filtered = users.filter((user) =>
         user.fullName.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -41,7 +42,12 @@ const UserManagement: React.FC<Props> = ({ users, searchTerm, userPage, setUserP
                 </div>
                 <div className="flex-1 overflow-y-auto p-2">
                     {data.map((user) => (
-                        <div key={user.id} className="m-2 flex items-center justify-between rounded-2xl border border-slate-100 bg-white p-4 transition-all hover:bg-slate-50">
+                        <button
+                            key={user.id}
+                            type="button"
+                            onClick={() => onSelectUser(user)}
+                            className="m-2 flex w-[calc(100%-1rem)] items-center justify-between rounded-2xl border border-slate-100 bg-white p-4 text-left transition-all hover:border-[#6C5CE7]/20 hover:bg-slate-50 hover:shadow-sm"
+                        >
                             <div className="flex items-center gap-4">
                                 <div className="flex h-10 w-10 items-center justify-center rounded-full bg-purple-100 font-bold text-[#6C5CE7]">
                                     {user.fullName.charAt(0)}
@@ -51,10 +57,17 @@ const UserManagement: React.FC<Props> = ({ users, searchTerm, userPage, setUserP
                                     <p className="text-xs text-slate-400">@{user.username}</p>
                                 </div>
                             </div>
-                            <button onClick={() => onDelete(user.id, user.fullName)} className="p-2 text-slate-300 hover:text-red-500">
+                            <button
+                                type="button"
+                                onClick={(event) => {
+                                    event.stopPropagation();
+                                    onDelete(user.id, user.fullName);
+                                }}
+                                className="p-2 text-slate-300 hover:text-red-500"
+                            >
                                 <FaTrashAlt />
                             </button>
-                        </div>
+                        </button>
                     ))}
                 </div>
                 <div className="flex items-center justify-between bg-slate-50 p-4 text-sm font-bold text-[#6C5CE7]">

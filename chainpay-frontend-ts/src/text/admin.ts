@@ -52,7 +52,19 @@ export const adminText = {
     },
     userManagement: {
         title: 'Danh sách Users',
-        chartTitle: 'Lưu lượng giao dịch (ETH)'
+        chartTitle: 'Lưu lượng giao dịch (ETH)',
+        modalTitle: 'Giao dịch của người dùng',
+        modalSubtitle: 'Toàn bộ giao dịch có liên quan đến ví này',
+        walletLabel: 'Ví đăng ký',
+        totalTransactionsLabel: 'Tổng giao dịch',
+        sentBadge: 'Đã gửi',
+        receivedBadge: 'Đã nhận',
+        noWallet: 'Người dùng này chưa đăng ký ví blockchain.',
+        empty: 'Chưa có giao dịch nào cho người dùng này.',
+        amountLabel: 'Số tiền',
+        hashLabel: 'TxHash',
+        productLabel: 'Sản phẩm',
+        close: 'Đóng'
     },
     transactionLedger: {
         title: 'Sổ cái giao dịch hệ thống',
