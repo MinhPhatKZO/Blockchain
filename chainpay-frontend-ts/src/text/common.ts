@@ -19,6 +19,7 @@ export const commonText = {
         notAvailable: 'N/A'
     },
     actions: {
+        deposit: 'Nạp Tiền',
         logout: 'Đăng Xuất',
         cancel: 'Hủy',
         save: 'Lưu lại',

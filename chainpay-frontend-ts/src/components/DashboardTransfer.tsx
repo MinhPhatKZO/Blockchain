@@ -4,6 +4,7 @@ import Web3 from 'web3';
 import { FaExchangeAlt, FaPaperPlane, FaShoppingCart, FaWallet } from 'react-icons/fa';
 
 import { axiosClient } from '../api';
+import { CONTRACT_BALANCE_UPDATED_EVENT, getChainPayContract } from '../blockchain/chainPayContract';
 import { commonText, dashboardText } from '../text';
 import type { DashboardOutletContext, PurchaseLocationState } from './DashboardTypes';
 import SuccessModal from './SuccessModal';
@@ -88,6 +89,8 @@ const DashboardTransfer: React.FC = () => {
             const trimmedAmount = amount.trim();
 
             if (!web3.utils.isAddress(toAddress)) throw new Error(dashboardText.transfer.errors.invalidAddress);
+            if (!publicConfig?.contractAddress) throw new Error(dashboardText.transfer.errors.missingContractAddress);
+            if (!web3.utils.isAddress(publicConfig.contractAddress)) throw new Error(dashboardText.transfer.errors.invalidContractAddress);
             if (!/^\d+$/.test(trimmedAmount) || /^0+$/.test(trimmedAmount)) {
                 throw new Error(dashboardText.transfer.errors.invalidAmount);
             }
@@ -95,10 +98,9 @@ const DashboardTransfer: React.FC = () => {
                 throw new Error(dashboardText.transfer.errors.walletMismatch);
             }
 
-            const receipt = await web3.eth.sendTransaction({
-                from: activeAccount,
-                to: toAddress,
-                value: trimmedAmount
+            const contract = getChainPayContract(web3, publicConfig.contractAddress);
+            const receipt = await contract.methods.sendPayment(toAddress, trimmedAmount).send({
+                from: activeAccount
             });
 
             const txHash = String(receipt.transactionHash ?? '');
@@ -133,6 +135,7 @@ const DashboardTransfer: React.FC = () => {
                 setAmount('');
             }
 
+            window.dispatchEvent(new CustomEvent(CONTRACT_BALANCE_UPDATED_EVENT));
             await refreshDashboardData();
         } catch (error: any) {
             console.error(error);
@@ -262,7 +265,8 @@ const DashboardTransfer: React.FC = () => {
                                     {dashboardText.transfer.amountLabel}
                                 </label>
                                 <input
-                                    type="number"
+                                    type="text"
+                                    inputMode="numeric"
                                     className={`w-full rounded-2xl border px-4 py-3.5 text-sm font-bold outline-none transition-all focus:border-[#6C5CE7] focus:ring-2 focus:ring-[#6C5CE7]/20 ${isPurchasing ? 'cursor-not-allowed border-slate-200 bg-slate-100 text-slate-500' : 'border-slate-200 bg-slate-50 text-slate-800'}`}
                                     placeholder={dashboardText.transfer.amountPlaceholder}
                                     value={amount}

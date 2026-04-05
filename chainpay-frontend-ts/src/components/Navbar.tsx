@@ -1,8 +1,9 @@
 import React, { useEffect, useState } from 'react';
 import { Link, NavLink, useLocation } from 'react-router-dom';
-import { FaCubes, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
+import { FaCubes, FaPlusCircle, FaSignOutAlt, FaUserCircle } from 'react-icons/fa';
 
 import { commonText, navbarText } from '../text';
+import DepositButton from './DepositButton';
 import { dashboardSections } from './DashboardSections';
 
 const Navbar: React.FC = () => {
@@ -56,6 +57,15 @@ const Navbar: React.FC = () => {
                         <Icon size={15} />
                     </NavLink>
                 ))}
+
+                {currentUser && currentUser.username && (
+                    <DepositButton
+                        className="flex items-center gap-2 rounded-xl bg-gradient-to-r from-[#6C5CE7] to-[#A29BFE] px-4 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#6C5CE7]/20 transition-all duration-300 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-[#6C5CE7]/25"
+                    >
+                        <FaPlusCircle size={16} />
+                        <span className="hidden sm:inline">{commonText.actions.deposit}</span>
+                    </DepositButton>
+                )}
 
                 {currentUser && currentUser.username && (
                     <Link

@@ -1,9 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { FaCheckCircle, FaCopy, FaEthereum, FaInfoCircle, FaWallet } from 'react-icons/fa';
 import Web3 from 'web3';
 
 import { axiosClient } from '../api';
+import { CONTRACT_BALANCE_UPDATED_EVENT } from '../blockchain/chainPayContract';
 import { commonText, profileText } from '../text';
+import DepositButton from './DepositButton';
 import Navbar from '../components/Navbar';
 
 interface UserData {
@@ -11,10 +13,6 @@ interface UserData {
     fullName?: string;
     username: string;
     walletAddress?: string;
-}
-
-interface EthereumProvider {
-    request: (args: { method: string; params?: unknown[] }) => Promise<unknown>;
 }
 
 const formatNumberString = (value: string) => value.replace(/\B(?=(\d{3})+(?!\d))/g, ',');
@@ -44,80 +42,65 @@ const formatEth = (value: string | null) => {
     }
 };
 
-const getBrowserWalletBalance = async (address: string) => {
-    const ethereum = (window as Window & { ethereum?: EthereumProvider }).ethereum;
-    if (!ethereum) {
-        throw new Error('Trinh duyet chua co vi Web3');
-    }
-
-    const balanceHex = await ethereum.request({
-        method: 'eth_getBalance',
-        params: [address, 'latest']
-    });
-
-    if (typeof balanceHex !== 'string') {
-        throw new Error('Khong doc duoc so du tu vi');
-    }
-
-    return Web3.utils.hexToNumberString(balanceHex);
-};
-
 const ProfilePage: React.FC = () => {
     const [currentUser, setCurrentUser] = useState<UserData | null>(null);
-    const [walletBalanceWei, setWalletBalanceWei] = useState<string | null>(null);
+    const [contractBalanceWei, setContractBalanceWei] = useState<string | null>(null);
     const [loading, setLoading] = useState(true);
     const [balanceError, setBalanceError] = useState('');
     const [copied, setCopied] = useState(false);
 
-    useEffect(() => {
-        const loadProfile = async () => {
-            try {
-                setLoading(true);
-                setBalanceError('');
+    const loadProfile = useCallback(async () => {
+        try {
+            setLoading(true);
+            setBalanceError('');
 
-                const userResponse = await axiosClient.get<UserData>('/users/me');
-                const user = userResponse.data;
+            const userResponse = await axiosClient.get<UserData>('/users/me');
+            const user = userResponse.data;
 
-                setCurrentUser(user);
-                localStorage.setItem('user', JSON.stringify(user));
+            setCurrentUser(user);
+            localStorage.setItem('user', JSON.stringify(user));
 
-                if (!user.walletAddress) {
-                    setWalletBalanceWei(null);
-                    return;
-                }
-
-                try {
-                    const walletBalanceResponse = await axiosClient.get<string>(`/payment/wallet-balance/${user.walletAddress}`);
-                    setWalletBalanceWei(String(walletBalanceResponse.data ?? '0'));
-                } catch (walletApiError) {
-                    console.error(walletApiError);
-
-                    try {
-                        const fallbackWalletBalance = await getBrowserWalletBalance(user.walletAddress);
-                        setWalletBalanceWei(fallbackWalletBalance);
-                    } catch (fallbackError) {
-                        console.error(fallbackError);
-                        setWalletBalanceWei(null);
-                        setBalanceError(profileText.page.balanceUnavailable);
-                    }
-                }
-            } catch (error) {
-                console.error(error);
-                const userStr = localStorage.getItem('user');
-                if (userStr) {
-                    try {
-                        setCurrentUser(JSON.parse(userStr));
-                    } catch (parseError) {
-                        console.error(parseError);
-                    }
-                }
-            } finally {
-                setLoading(false);
+            if (!user.walletAddress) {
+                setContractBalanceWei(null);
+                return;
             }
+
+            try {
+                const contractBalanceResponse = await axiosClient.get<string>(`/payment/balance/${user.walletAddress}`);
+                setContractBalanceWei(String(contractBalanceResponse.data ?? '0'));
+            } catch (contractApiError) {
+                console.error(contractApiError);
+                setContractBalanceWei(null);
+                setBalanceError(profileText.page.balanceUnavailable);
+            }
+        } catch (error) {
+            console.error(error);
+            const userStr = localStorage.getItem('user');
+            if (userStr) {
+                try {
+                    setCurrentUser(JSON.parse(userStr));
+                } catch (parseError) {
+                    console.error(parseError);
+                }
+            }
+        } finally {
+            setLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        void loadProfile();
+
+        const handleBalanceUpdated = () => {
+            void loadProfile();
         };
 
-        void loadProfile();
-    }, []);
+        window.addEventListener(CONTRACT_BALANCE_UPDATED_EVENT, handleBalanceUpdated);
+
+        return () => {
+            window.removeEventListener(CONTRACT_BALANCE_UPDATED_EVENT, handleBalanceUpdated);
+        };
+    }, [loadProfile]);
 
     const copyToClipboard = (text: string) => {
         navigator.clipboard.writeText(text);
@@ -214,18 +197,33 @@ const ProfilePage: React.FC = () => {
                                         <div className="flex h-10 w-10 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-emerald-400 backdrop-blur-sm">
                                             <FaEthereum size={20} />
                                         </div>
-                                        <h2 className="text-lg font-bold text-slate-200">{profileText.page.accountBalanceTitle}</h2>
+                                        <div>
+                                            <h2 className="text-lg font-bold text-slate-200">{profileText.page.accountBalanceTitle}</h2>
+                                            <p className="mt-1 text-xs font-semibold uppercase tracking-[0.25em] text-slate-400">
+                                                {profileText.page.accountBalanceCaption}
+                                            </p>
+                                        </div>
                                     </div>
 
                                     {currentUser.walletAddress ? (
                                         <div>
                                             <div className="flex items-baseline gap-2">
-                                                <span className="text-4xl font-black tracking-tight text-white sm:text-5xl">{formatEth(walletBalanceWei)}</span>
+                                                <span className="text-4xl font-black tracking-tight text-white sm:text-5xl">{formatEth(contractBalanceWei)}</span>
                                                 <span className="text-lg font-bold text-slate-400">{commonText.labels.eth}</span>
                                             </div>
                                             <p className="mt-2 font-mono text-xs text-slate-400">
-                                                {profileText.page.availableLabel}: {formatWei(walletBalanceWei)} {commonText.labels.wei}
+                                                {profileText.page.availableLabel}: {formatWei(contractBalanceWei)} {commonText.labels.wei}
                                             </p>
+                                            <p className="mt-4 max-w-xs text-sm font-medium leading-6 text-slate-300">
+                                                {profileText.page.contractBalanceHint}
+                                            </p>
+                                            <DepositButton
+                                                walletAddress={currentUser.walletAddress}
+                                                className="mt-6 inline-flex items-center gap-2 rounded-2xl bg-white px-5 py-3 text-sm font-black text-slate-900 shadow-md transition-all duration-300 hover:-translate-y-0.5 hover:bg-slate-100"
+                                            >
+                                                {commonText.actions.deposit}
+                                                <span className="text-slate-400">{profileText.page.depositButtonSuffix}</span>
+                                            </DepositButton>
                                         </div>
                                     ) : (
                                         <div className="rounded-2xl border border-white/10 bg-white/5 p-4 text-sm font-medium text-slate-300">

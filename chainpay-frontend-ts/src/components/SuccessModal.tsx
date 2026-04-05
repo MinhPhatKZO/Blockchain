@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { FaArrowRight, FaCheckCircle, FaTimes } from 'react-icons/fa';
 
 import { commonText } from '../text';
@@ -38,7 +39,7 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
         return null;
     }
 
-    return (
+    return createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center px-4 py-8 sm:px-6">
             <div className="absolute inset-0 bg-slate-950/55 backdrop-blur-sm" onClick={onClose} />
 
@@ -84,7 +85,8 @@ const SuccessModal: React.FC<SuccessModalProps> = ({
                     </div>
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 
